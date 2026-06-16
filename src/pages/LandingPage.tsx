@@ -328,6 +328,7 @@ export default function LandingPage() {
               src="/logo.png"
               alt="AI Centre Logo"
               className="h-12 w-auto"
+            />
             <div className="leading-tight">
               <div className="text-white font-bold text-sm">AI Centre</div>
               <div className="text-gray-500 text-xs">Vidyashilp Academy</div>
