@@ -17,12 +17,32 @@ interface AuthContextType {
   profile: Profile | null;
   session: Session | null;
   loading: boolean;
+  sendOtp: (email: string, purpose: 'signin' | 'signup') => Promise<{ error: string | null }>;
+  verifyOtp: (email: string, code: string, purpose: 'signin' | 'signup') => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null; needsConfirmation: boolean }>;
+  signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const OTP_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/otp`;
+const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+async function callOtp(action: 'send' | 'verify', body: Record<string, string>) {
+  const res = await fetch(`${OTP_FUNCTION_URL}/${action}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${ANON_KEY}`,
+      Apikey: ANON_KEY,
+    },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json();
+  if (!res.ok || json.error) return { error: json.error || 'Request failed' };
+  return { error: null };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -34,22 +54,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
-        setLoading(false);
-      }
+      if (session?.user) fetchProfile(session.user.id);
+      else setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
-        setProfile(null);
-        setLoading(false);
-      }
+      (async () => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) await fetchProfile(session.user.id);
+        else { setProfile(null); setLoading(false); }
+      })();
     });
 
     return () => subscription.unsubscribe();
@@ -61,17 +76,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
-
+        .maybeSingle();
       if (error) throw error;
       setProfile(data);
-    } catch (error) {
-      console.error('Error fetching profile:', error);
+    } catch (e) {
+      console.error('Error fetching profile:', e);
     } finally {
       setLoading(false);
     }
   }
 
+  async function sendOtp(email: string, purpose: 'signin' | 'signup') {
+    return callOtp('send', { email, purpose });
+  }
+
+  async function verifyOtp(email: string, code: string, purpose: 'signin' | 'signup') {
+    return callOtp('verify', { email, code, purpose });
+  }
+
+  // Called after OTP is verified for sign-in
   async function signIn(email: string, password: string) {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -81,41 +104,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Called after OTP is verified for sign-up
   async function signUp(email: string, password: string, fullName: string) {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          emailRedirectTo: window.location.origin + '/login',
-          data: {
-            full_name: fullName,
-          }
-        }
+        options: { data: { full_name: fullName } },
       });
+      if (error) return { error };
 
-      if (error) return { error, needsConfirmation: false };
-
-      // Check if user needs email confirmation
-      if (data.user && !data.session) {
-        // Email confirmation is required - profile will be created after confirmation
-        // We use a database trigger for this
-        return { error: null, needsConfirmation: true };
-      }
-
-      // If session exists (email confirmation disabled), create profile immediately
       if (data.user && data.session) {
-        const { error: profileError } = await supabase.from('profiles').insert({
+        await supabase.from('profiles').insert({
           id: data.user.id,
           email,
           full_name: fullName,
           role: 'student',
         });
-        if (profileError) return { error: profileError, needsConfirmation: false };
       }
-      return { error: null, needsConfirmation: false };
+      return { error: null };
     } catch (error) {
-      return { error: error as Error, needsConfirmation: false };
+      return { error: error as Error };
     }
   }
 
@@ -124,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, session, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, profile, session, loading, sendOtp, verifyOtp, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );
@@ -132,8 +141,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (context === undefined) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 }
