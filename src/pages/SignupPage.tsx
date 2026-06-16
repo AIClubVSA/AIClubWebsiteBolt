@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Mail, Lock, User, Loader2, AlertCircle, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { Brain, Mail, Lock, User, Loader2, AlertCircle, ArrowLeft, ShieldCheck } from 'lucide-react';
 
 type Step = 'form' | 'otp';
 
@@ -16,7 +16,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const { sendOtp, verifyOtp, signUp } = useAuth();
+  const { sendSignUpOtp, verifySignUpOtp } = useAuth();
   const navigate = useNavigate();
 
   function startCooldown() {
@@ -32,11 +32,12 @@ export default function SignupPage() {
     if (password !== confirmPassword) { setError('Passwords do not match'); return; }
     if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
     setLoading(true);
-    const { error } = await sendOtp(email, 'signup');
+    const { error } = await sendSignUpOtp(email);
     setLoading(false);
     if (error) { setError(error); return; }
     setStep('otp');
     startCooldown();
+    setTimeout(() => otpRefs.current[0]?.focus(), 50);
   };
 
   const handleOtpChange = (i: number, val: string) => {
@@ -60,19 +61,14 @@ export default function SignupPage() {
   const completeSignup = async (code: string) => {
     setError(null);
     setLoading(true);
-
-    const { error: verifyErr } = await verifyOtp(email, code, 'signup');
-    if (verifyErr) {
-      setLoading(false);
-      setError(verifyErr);
+    const { error } = await verifySignUpOtp(email, code, fullName, password);
+    setLoading(false);
+    if (error) {
+      setError(error);
       setOtp(['', '', '', '', '', '']);
       otpRefs.current[0]?.focus();
       return;
     }
-
-    const { error: signupErr } = await signUp(email, password, fullName);
-    setLoading(false);
-    if (signupErr) { setError(signupErr.message); return; }
     navigate('/dashboard');
   };
 
@@ -85,7 +81,7 @@ export default function SignupPage() {
     if (resendCooldown > 0) return;
     setError(null);
     setLoading(true);
-    const { error } = await sendOtp(email, 'signup');
+    const { error } = await sendSignUpOtp(email);
     setLoading(false);
     if (error) { setError(error); return; }
     setOtp(['', '', '', '', '', '']);
@@ -98,14 +94,16 @@ export default function SignupPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center text-white font-bold text-sm">AI</div>
+            <Brain className="w-10 h-10 text-cyan-400" />
             <span className="text-xl font-bold text-white">AI Centre</span>
           </Link>
           <h1 className="text-3xl font-bold text-white mb-2">
             {step === 'form' ? 'Create account' : 'Verify your email'}
           </h1>
           <p className="text-gray-400 text-sm">
-            {step === 'form' ? 'Join the AI Centre at Vidyashilp Academy' : `Enter the 6-digit code sent to ${email}`}
+            {step === 'form'
+              ? 'Join the AI Centre at Vidyashilp Academy'
+              : `Enter the 6-digit code sent to ${email}`}
           </p>
         </div>
 
@@ -117,14 +115,14 @@ export default function SignupPage() {
             </div>
           )}
 
-          {/* Step 1: Registration form */}
           {step === 'form' && (
             <form onSubmit={handleFormSubmit} className="space-y-5">
               <div>
                 <label htmlFor="fullName" className="block text-sm font-medium text-gray-300 mb-2">Full Name</label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                  <input id="fullName" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required autoFocus
+                  <input id="fullName" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)}
+                    required autoFocus
                     className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white placeholder-gray-600 focus:border-cyan-500/50 focus:outline-none transition-colors"
                     placeholder="Your full name" />
                 </div>
@@ -164,21 +162,23 @@ export default function SignupPage() {
                 <ShieldCheck className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
                 <p className="text-sm text-gray-300">
                   <span className="text-cyan-400 font-medium">Email verification required. </span>
-                  A 6-digit code will be sent to your Gmail to complete registration.
+                  A 6-digit code will be sent to your email to complete registration.
                 </p>
               </div>
 
-              <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold py-3 rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all disabled:opacity-50">
+              <button type="submit" disabled={loading}
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold py-3 rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all disabled:opacity-50">
                 {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Sending code...</> : 'Continue'}
               </button>
             </form>
           )}
 
-          {/* Step 2: OTP */}
           {step === 'otp' && (
             <form onSubmit={handleOtpSubmit} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-4 text-center">Enter the 6-digit code</label>
+                <label className="block text-sm font-medium text-gray-300 mb-4 text-center">
+                  Enter the 6-digit code
+                </label>
                 <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
                   {otp.map((digit, i) => (
                     <input
@@ -187,7 +187,6 @@ export default function SignupPage() {
                       type="text" inputMode="numeric" maxLength={1} value={digit}
                       onChange={(e) => handleOtpChange(i, e.target.value)}
                       onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                      autoFocus={i === 0}
                       className="w-12 h-14 text-center text-2xl font-bold bg-white/5 border border-white/10 rounded-xl text-white focus:border-cyan-500 focus:outline-none transition-colors"
                     />
                   ))}
@@ -197,22 +196,25 @@ export default function SignupPage() {
               {loading && (
                 <div className="flex items-center justify-center gap-2 text-cyan-400">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">Verifying &amp; creating your account...</span>
+                  <span className="text-sm">Creating your account...</span>
                 </div>
               )}
 
               <div className="space-y-3">
-                <button type="submit" disabled={loading || otp.some((d) => !d)} className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold py-3 rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all disabled:opacity-50">
+                <button type="submit" disabled={loading || otp.some((d) => !d)}
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold py-3 rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all disabled:opacity-50">
                   {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Creating account...</> : <><ShieldCheck className="w-5 h-5" /> Verify &amp; Create Account</>}
                 </button>
                 <div className="text-center">
-                  <button type="button" onClick={handleResend} disabled={resendCooldown > 0 || loading} className="text-sm text-gray-400 hover:text-cyan-400 transition-colors disabled:opacity-50">
+                  <button type="button" onClick={handleResend} disabled={resendCooldown > 0 || loading}
+                    className="text-sm text-gray-400 hover:text-cyan-400 transition-colors disabled:opacity-50">
                     {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}
                   </button>
                 </div>
               </div>
 
-              <button type="button" onClick={() => { setStep('form'); setOtp(['', '', '', '', '', '']); setError(null); }} className="w-full flex items-center justify-center gap-2 text-gray-500 hover:text-white text-sm transition-colors">
+              <button type="button" onClick={() => { setStep('form'); setOtp(['', '', '', '', '', '']); setError(null); }}
+                className="w-full flex items-center justify-center gap-2 text-gray-500 hover:text-white text-sm transition-colors">
                 <ArrowLeft className="w-4 h-4" /> Back to form
               </button>
             </form>
