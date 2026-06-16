@@ -324,11 +324,9 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           {/* Brand */}
           <a href="#home" className="flex items-center gap-3" aria-label="AI Centre home">
-            <img
-              src="/logo.png"
-              alt="AI Centre Logo"
-              className="h-12 w-auto"
-            />
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center text-white font-bold text-sm">
+              AI
+            </div>
             <div className="leading-tight">
               <div className="text-white font-bold text-sm">AI Centre</div>
               <div className="text-gray-500 text-xs">Vidyashilp Academy</div>
