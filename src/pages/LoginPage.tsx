@@ -3,12 +3,15 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Brain, Mail, Loader2, AlertCircle, ArrowLeft, ShieldCheck } from 'lucide-react';
 
+const OTP_LENGTH = 8;
+const EMPTY_OTP = Array(OTP_LENGTH).fill('');
+
 type Step = 'email' | 'otp';
 
 export default function LoginPage() {
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [otp, setOtp] = useState<string[]>(EMPTY_OTP);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -40,7 +43,7 @@ export default function LoginPage() {
     const next = [...otp];
     next[i] = val.slice(-1);
     setOtp(next);
-    if (val && i < 5) otpRefs.current[i + 1]?.focus();
+    if (val && i < OTP_LENGTH - 1) otpRefs.current[i + 1]?.focus();
     if (next.every((d) => d !== '')) verifyCode(next.join(''));
   };
 
@@ -49,8 +52,12 @@ export default function LoginPage() {
   };
 
   const handleOtpPaste = (e: React.ClipboardEvent) => {
-    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-    if (text.length === 6) { setOtp(text.split('')); verifyCode(text); }
+    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LENGTH);
+    if (text.length === OTP_LENGTH) {
+      const digits = text.split('');
+      setOtp(digits);
+      verifyCode(text);
+    }
   };
 
   const verifyCode = async (code: string) => {
@@ -60,8 +67,8 @@ export default function LoginPage() {
     setLoading(false);
     if (error) {
       setError(error);
-      setOtp(['', '', '', '', '', '']);
-      otpRefs.current[0]?.focus();
+      setOtp([...EMPTY_OTP]);
+      setTimeout(() => otpRefs.current[0]?.focus(), 50);
       return;
     }
     navigate('/dashboard');
@@ -79,8 +86,8 @@ export default function LoginPage() {
     const { error } = await sendSignInOtp(email);
     setLoading(false);
     if (error) { setError(error); return; }
-    setOtp(['', '', '', '', '', '']);
-    otpRefs.current[0]?.focus();
+    setOtp([...EMPTY_OTP]);
+    setTimeout(() => otpRefs.current[0]?.focus(), 50);
     startCooldown();
   };
 
@@ -98,7 +105,7 @@ export default function LoginPage() {
           <p className="text-gray-400 text-sm">
             {step === 'email'
               ? 'Sign in to access your dashboard'
-              : `We sent a 6-digit code to ${email}`}
+              : `We sent an 8-digit code to ${email}`}
           </p>
         </div>
 
@@ -137,9 +144,9 @@ export default function LoginPage() {
             <form onSubmit={handleOtpSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-4 text-center">
-                  Enter the 6-digit code
+                  Enter the 8-digit code
                 </label>
-                <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
+                <div className="flex gap-1.5 justify-center" onPaste={handleOtpPaste}>
                   {otp.map((digit, i) => (
                     <input
                       key={i}
@@ -147,7 +154,8 @@ export default function LoginPage() {
                       type="text" inputMode="numeric" maxLength={1} value={digit}
                       onChange={(e) => handleOtpChange(i, e.target.value)}
                       onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                      className="w-12 h-14 text-center text-2xl font-bold bg-white/5 border border-white/10 rounded-xl text-white focus:border-cyan-500 focus:outline-none transition-colors"
+                      className="w-10 h-13 text-center text-xl font-bold bg-white/5 border border-white/10 rounded-xl text-white focus:border-cyan-500 focus:outline-none transition-colors"
+                      style={{ height: '3.25rem' }}
                     />
                   ))}
                 </div>
@@ -173,7 +181,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <button type="button" onClick={() => { setStep('email'); setOtp(['', '', '', '', '', '']); setError(null); }}
+              <button type="button" onClick={() => { setStep('email'); setOtp([...EMPTY_OTP]); setError(null); }}
                 className="w-full flex items-center justify-center gap-2 text-gray-500 hover:text-white text-sm transition-colors">
                 <ArrowLeft className="w-4 h-4" /> Change email
               </button>
