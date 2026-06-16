@@ -28,24 +28,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const OTP_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/otp`;
-const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-async function checkEmailExists(email: string): Promise<{ exists: boolean; error: string | null }> {
-  const res = await fetch(`${OTP_FUNCTION_URL}/check`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${ANON_KEY}`,
-      Apikey: ANON_KEY,
-    },
-    body: JSON.stringify({ email }),
-  });
-  const json = await res.json();
-  if (!res.ok) return { exists: false, error: json.error || 'Request failed' };
-  return { exists: json.exists, error: null };
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -89,16 +71,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function sendSignInOtp(email: string): Promise<{ error: string | null }> {
-    // Verify account exists first (friendly error, not a security gate)
-    const { exists, error: checkErr } = await checkEmailExists(email);
-    if (checkErr) return { error: checkErr };
-    if (!exists) return { error: 'No account found with that email address.' };
-
+    // shouldCreateUser: false means Supabase returns an error if the user doesn't exist
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { shouldCreateUser: false },
     });
-    if (error) return { error: error.message };
+    if (error) {
+      if (error.message.toLowerCase().includes('user not found') ||
+          error.message.toLowerCase().includes('no user')) {
+        return { error: 'No account found with that email address.' };
+      }
+      return { error: error.message };
+    }
     return { error: null };
   }
 
@@ -109,12 +93,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function sendSignUpOtp(email: string): Promise<{ error: string | null }> {
-    // Check email is not already registered
-    const { exists, error: checkErr } = await checkEmailExists(email);
-    if (checkErr) return { error: checkErr };
-    if (exists) return { error: 'An account with that email already exists. Please sign in.' };
+    // Check profiles table directly — more reliable than a separate edge function call
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', email.toLowerCase().trim())
+      .maybeSingle();
+    if (existing) return { error: 'An account with that email already exists. Please sign in.' };
 
-    // Use signInWithOtp with shouldCreateUser: true — Supabase sends a 6-digit code
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { shouldCreateUser: true },
