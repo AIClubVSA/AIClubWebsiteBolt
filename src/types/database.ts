@@ -41,3 +41,37 @@ export interface Class {
   created_at: string;
   updated_at: string;
 }
+
+export interface Note {
+  id: string;
+  class_id: string;
+  student_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
+
+export interface Attendance {
+  id: string;
+  class_id: string;
+  student_id: string;
+  status: AttendanceStatus;
+  marked_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClassNoteFile {
+  id: string;
+  class_id: string;
+  title: string;
+  description?: string;
+  file_path: string;
+  file_name: string;
+  file_size: number;
+  file_type: string;
+  uploaded_by: string;
+  created_at: string;
+}

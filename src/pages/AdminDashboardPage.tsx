@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth, Profile } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Project, Announcement, Class, Message } from '../types/database';
+import { Project, Announcement, Class, Message, Attendance, AttendanceStatus, ClassNoteFile } from '../types/database';
 import {
-  Brain,
   LayoutDashboard,
   Users,
   FolderGit,
@@ -19,10 +18,22 @@ import {
   Trash2,
   Send,
   Eye,
+  ClipboardCheck,
+  Check,
+  XCircle,
+  Clock,
+  MinusCircle,
+  StickyNote,
+  Upload,
+  FileText,
+  Image,
+  File,
+  Download,
+  ExternalLink,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
-type AdminTabType = 'overview' | 'users' | 'projects' | 'messages' | 'classes' | 'announcements';
+type AdminTabType = 'overview' | 'users' | 'projects' | 'messages' | 'classes' | 'attendance' | 'notes' | 'announcements';
 
 export default function AdminDashboardPage() {
   const { profile, signOut } = useAuth();
@@ -33,8 +44,10 @@ export default function AdminDashboardPage() {
   const [projects, setProjects] = useState<(Project & { profiles: Profile })[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
-  const [messages, setMessages] = useState<(Message & { sender: Profile })[]>([]);
+  const [messages, setMessages] = useState<(Message & { sender?: Profile; receiver?: Profile })[]>([]);
   const [stats, setStats] = useState({ students: 0, projects: 0, pendingMessages: 0, upcomingClasses: 0 });
+  const [attendance, setAttendance] = useState<Attendance[]>([]);
+  const [classNoteFiles, setClassNoteFiles] = useState<ClassNoteFile[]>([]);
 
   useEffect(() => {
     if (profile && profile.role === 'admin') {
@@ -44,12 +57,14 @@ export default function AdminDashboardPage() {
 
   async function fetchAdminData() {
     try {
-      const [studentsRes, projectsRes, announcementsRes, classesRes, messagesRes] = await Promise.all([
+      const [studentsRes, projectsRes, announcementsRes, classesRes, messagesRes, attendanceRes, classNoteFilesRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('role', 'student').order('created_at', { ascending: false }),
         supabase.from('projects').select('*, profiles!projects_student_id_fkey(*)').order('created_at', { ascending: false }),
         supabase.from('announcements').select('*').order('created_at', { ascending: false }),
         supabase.from('classes').select('*').order('date', { ascending: true }),
-        supabase.from('messages').select('*, sender:profiles!messages_sender_id_fkey(*)').eq('receiver_id', profile!.id).order('created_at', { ascending: false }),
+        supabase.from('messages').select('*, sender:profiles!messages_sender_id_fkey(*), receiver:profiles!messages_receiver_id_fkey(*)').or(`sender_id.eq.${profile!.id},receiver_id.eq.${profile!.id}`).order('created_at', { ascending: false }),
+        supabase.from('attendance').select('*').order('updated_at', { ascending: false }),
+        supabase.from('class_notes_files').select('*').order('created_at', { ascending: false }),
       ]);
 
       setStudents(studentsRes.data || []);
@@ -57,6 +72,8 @@ export default function AdminDashboardPage() {
       setAnnouncements(announcementsRes.data || []);
       setClasses(classesRes.data || []);
       setMessages(messagesRes.data || []);
+      setAttendance(attendanceRes.data || []);
+      setClassNoteFiles(classNoteFilesRes.data || []);
 
       const today = new Date();
       setStats({
@@ -78,24 +95,26 @@ export default function AdminDashboardPage() {
     { id: 'projects', label: 'All Projects', icon: FolderGit },
     { id: 'messages', label: 'Messages', icon: MessageSquare },
     { id: 'classes', label: 'Classes', icon: CalendarDays },
+    { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
+    { id: 'notes', label: 'Class Notes', icon: StickyNote },
     { id: 'announcements', label: 'Announcements', icon: Bell },
   ];
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-secondary-900 flex items-center justify-center">
+      <div className="min-h-screen bg-[#162132] flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-primary-400 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-secondary-900">
+    <div className="min-h-screen bg-[#162132]">
       {/* Sidebar */}
-      <aside className="fixed left-0 top-0 bottom-0 w-64 bg-secondary-800 border-r border-secondary-700 hidden lg:block">
+      <aside className="fixed left-0 top-0 bottom-0 w-64 bg-secondary-900 border-r border-secondary-700/60 hidden lg:block">
         <div className="p-6">
           <div className="flex items-center gap-2 mb-8">
-            <Brain className="w-8 h-8 text-primary-400" />
+            <img src="/files_10604804-2026-06-17T04-45-00-187Z-unnamed.png" className="w-8 h-8 object-contain rounded" alt="AI Club" />
             <span className="font-display text-xl font-bold text-white">AI Centre</span>
           </div>
 
@@ -144,10 +163,10 @@ export default function AdminDashboardPage() {
       {/* Main Content */}
       <main className="lg:ml-64">
         {/* Mobile Header */}
-        <header className="lg:hidden fixed top-0 left-0 right-0 bg-secondary-800 border-b border-secondary-700 z-40">
+        <header className="lg:hidden fixed top-0 left-0 right-0 bg-secondary-900 border-b border-secondary-700/60 z-40">
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-2">
-              <Brain className="w-6 h-6 text-primary-400" />
+              <img src="/files_10604804-2026-06-17T04-45-00-187Z-unnamed.png" className="w-6 h-6 object-contain rounded" alt="AI Club" />
               <span className="font-display text-lg font-bold text-white">Admin</span>
             </div>
             <button onClick={signOut} className="p-2 text-secondary-400 hover:text-white">
@@ -170,31 +189,31 @@ export default function AdminDashboardPage() {
           </div>
         </header>
 
-        <div className="pt-28 lg:pt-8 p-4 lg:p-8">
+        <div className="pt-28 lg:pt-8 p-5 lg:p-10">
           {/* Overview Tab */}
           {activeTab === 'overview' && (
-            <div className="space-y-6">
+            <div className="space-y-8">
               <div>
-                <h1 className="font-display text-2xl font-bold text-white mb-1">Admin Dashboard</h1>
+                <h1 className="font-display text-3xl font-bold text-white mb-2">Admin Dashboard</h1>
                 <p className="text-secondary-400">Manage the AI Centre platform</p>
               </div>
 
               {/* Stats */}
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-6 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
-                  <div className="text-secondary-400 text-sm mb-1">Total Students</div>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="p-7 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
+                  <div className="text-secondary-400 text-sm mb-2">Total Students</div>
                   <div className="font-display text-3xl font-bold text-white">{stats.students}</div>
                 </div>
-                <div className="p-6 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
-                  <div className="text-secondary-400 text-sm mb-1">Active Projects</div>
+                <div className="p-7 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
+                  <div className="text-secondary-400 text-sm mb-2">Active Projects</div>
                   <div className="font-display text-3xl font-bold text-primary-400">{stats.projects}</div>
                 </div>
-                <div className="p-6 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
-                  <div className="text-secondary-400 text-sm mb-1">Unread Messages</div>
+                <div className="p-7 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
+                  <div className="text-secondary-400 text-sm mb-2">Unread Messages</div>
                   <div className="font-display text-3xl font-bold text-accent-400">{stats.pendingMessages}</div>
                 </div>
-                <div className="p-6 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
-                  <div className="text-secondary-400 text-sm mb-1">Upcoming Classes</div>
+                <div className="p-7 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
+                  <div className="text-secondary-400 text-sm mb-2">Upcoming Classes</div>
                   <div className="font-display text-3xl font-bold text-white">{stats.upcomingClasses}</div>
                 </div>
               </div>
@@ -259,6 +278,16 @@ export default function AdminDashboardPage() {
             <ClassManagement classes={classes} profileId={profile!.id} onUpdate={fetchAdminData} />
           )}
 
+          {/* Attendance Tab */}
+          {activeTab === 'attendance' && (
+            <AttendanceManagement classes={classes} students={students} attendance={attendance} profileId={profile!.id} onUpdate={fetchAdminData} />
+          )}
+
+          {/* Notes Tab */}
+          {activeTab === 'notes' && (
+            <ClassNotesManagement classes={classes} classNoteFiles={classNoteFiles} profileId={profile!.id} onUpdate={fetchAdminData} />
+          )}
+
           {/* Announcements Tab */}
           {activeTab === 'announcements' && (
             <AnnouncementManagement
@@ -274,8 +303,17 @@ export default function AdminDashboardPage() {
 }
 
 // User Management Component
-function UserManagement({ students }: { students: Profile[]; onUpdate: () => void }) {
+function UserManagement({ students, onUpdate }: { students: Profile[]; onUpdate: () => void }) {
   const [search, setSearch] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({ email: '', full_name: '' });
+  const [addSaving, setAddSaving] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+
+  const [editingStudent, setEditingStudent] = useState<Profile | null>(null);
+  const [editForm, setEditForm] = useState({ full_name: '', email: '' });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const filteredStudents = students.filter(
     (s) =>
@@ -283,21 +321,170 @@ function UserManagement({ students }: { students: Profile[]; onUpdate: () => voi
       s.email.toLowerCase().includes(search.toLowerCase())
   );
 
+  async function handleAddStudent(e: React.FormEvent) {
+    e.preventDefault();
+    setAddSaving(true);
+    setAddError(null);
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('admin-manage-students', {
+        body: { action: 'create', email: addForm.email, full_name: addForm.full_name },
+      });
+      if (fnError || data?.error) {
+        setAddError(data?.error || fnError?.message || 'Failed to add student');
+        return;
+      }
+      setShowAddModal(false);
+      setAddForm({ email: '', full_name: '' });
+      onUpdate();
+    } catch {
+      setAddError('An unexpected error occurred');
+    } finally {
+      setAddSaving(false);
+    }
+  }
+
+  function openEdit(student: Profile) {
+    setEditingStudent(student);
+    setEditForm({ full_name: student.full_name, email: student.email });
+    setEditError(null);
+  }
+
+  async function handleEditStudent(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingStudent) return;
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('admin-manage-students', {
+        body: {
+          action: 'update',
+          userId: editingStudent.id,
+          full_name: editForm.full_name,
+          email: editForm.email !== editingStudent.email ? editForm.email : undefined,
+        },
+      });
+      if (fnError || data?.error) {
+        setEditError(data?.error || fnError?.message || 'Failed to update student');
+        return;
+      }
+      setEditingStudent(null);
+      onUpdate();
+    } catch {
+      setEditError('An unexpected error occurred');
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function handleDeleteStudent(student: Profile) {
+    if (!confirm(`Remove ${student.full_name}? This will also delete all their messages and projects.`)) return;
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('admin-manage-students', {
+        body: { action: 'delete', userId: student.id },
+      });
+      if (fnError || data?.error) {
+        alert(data?.error || fnError?.message || 'Failed to remove student');
+        return;
+      }
+      onUpdate();
+    } catch {
+      alert('An unexpected error occurred');
+    }
+  }
+
+  const inputCls = 'w-full bg-secondary-900 border border-secondary-700 rounded-lg px-4 py-2.5 text-white placeholder-secondary-500 focus:border-primary-500 focus:outline-none transition-colors';
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
-        <h1 className="font-display text-2xl font-bold text-white">Student Management</h1>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary-500" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search students..."
-            className="pl-10 pr-4 py-2 bg-secondary-800 border border-secondary-700 rounded-lg text-white placeholder-secondary-500"
-          />
+        <h1 className="font-display text-3xl font-bold text-white">Student Management</h1>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary-500" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search students..."
+              className="pl-10 pr-4 py-2 bg-secondary-800 border border-secondary-700 rounded-lg text-white placeholder-secondary-500"
+            />
+          </div>
+          <button
+            onClick={() => { setShowAddModal(true); setAddError(null); }}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium whitespace-nowrap transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Student
+          </button>
         </div>
       </div>
+
+      {/* Add Student Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-secondary-800 border border-secondary-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-display text-xl font-bold text-white">Add New Student</h2>
+              <button
+                onClick={() => { setShowAddModal(false); setAddError(null); setAddForm({ email: '', full_name: '' }); }}
+                className="text-secondary-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {addError && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">{addError}</div>
+            )}
+            <form onSubmit={handleAddStudent} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-secondary-300 mb-2">Full Name</label>
+                <input type="text" value={addForm.full_name} onChange={(e) => setAddForm({ ...addForm, full_name: e.target.value })} required autoFocus placeholder="Student's full name" className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-secondary-300 mb-2">Email Address</label>
+                <input type="email" value={addForm.email} onChange={(e) => setAddForm({ ...addForm, email: e.target.value })} required placeholder="student@example.com" className={inputCls} />
+              </div>
+              <p className="text-secondary-500 text-xs">The student can sign in via OTP on the login page once their account is created.</p>
+              <button type="submit" disabled={addSaving} className="w-full py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+                {addSaving ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</> : 'Add Student'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Student Modal */}
+      {editingStudent && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-secondary-800 border border-secondary-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-display text-xl font-bold text-white">Edit Student</h2>
+              <button onClick={() => setEditingStudent(null)} className="text-secondary-400 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {editError && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">{editError}</div>
+            )}
+            <form onSubmit={handleEditStudent} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-secondary-300 mb-2">Full Name</label>
+                <input type="text" value={editForm.full_name} onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })} required placeholder="Full name" className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-secondary-300 mb-2">Email Address</label>
+                <input type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} required placeholder="Email address" className={inputCls} />
+                {editForm.email !== editingStudent.email && (
+                  <p className="text-yellow-400 text-xs mt-1">Email will be updated — the student will need to use the new address to sign in.</p>
+                )}
+              </div>
+              <button type="submit" disabled={editSaving} className="w-full py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+                {editSaving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : 'Save Changes'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       <div className="bg-secondary-800/50 border border-secondary-700/50 rounded-2xl overflow-hidden">
         <table className="w-full">
@@ -306,16 +493,16 @@ function UserManagement({ students }: { students: Profile[]; onUpdate: () => voi
               <th className="text-left p-4 text-secondary-400 font-medium">Name</th>
               <th className="text-left p-4 text-secondary-400 font-medium hidden sm:table-cell">Email</th>
               <th className="text-left p-4 text-secondary-400 font-medium hidden md:table-cell">Joined</th>
-              <th className="p-4"></th>
+              <th className="p-4 w-24"></th>
             </tr>
           </thead>
           <tbody>
             {filteredStudents.map((student) => (
-              <tr key={student.id} className="border-b border-secondary-700/50 last:border-0">
+              <tr key={student.id} className="border-b border-secondary-700/50 last:border-0 hover:bg-secondary-700/20 transition-colors">
                 <td className="p-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary-500/20 flex items-center justify-center text-primary-400 font-semibold">
-                      {student.full_name.charAt(0)}
+                      {student.full_name.charAt(0).toUpperCase()}
                     </div>
                     <span className="text-white font-medium">{student.full_name}</span>
                   </div>
@@ -325,16 +512,31 @@ function UserManagement({ students }: { students: Profile[]; onUpdate: () => voi
                   {format(parseISO(student.created_at), 'MMM d, yyyy')}
                 </td>
                 <td className="p-4">
-                  <button className="text-secondary-400 hover:text-primary-400 transition-colors">
-                    <Eye className="w-5 h-5" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => openEdit(student)}
+                      className="p-2 text-secondary-500 hover:text-primary-400 transition-colors rounded-lg hover:bg-primary-400/10"
+                      title="Edit student"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteStudent(student)}
+                      className="p-2 text-secondary-500 hover:text-red-400 transition-colors rounded-lg hover:bg-red-400/10"
+                      title="Remove student"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
         {filteredStudents.length === 0 && (
-          <div className="text-center py-8 text-secondary-400">No students found</div>
+          <div className="text-center py-10 text-secondary-400">
+            {search ? 'No students match your search' : 'No students yet. Click "Add Student" to get started.'}
+          </div>
         )}
       </div>
     </div>
@@ -623,7 +825,7 @@ function MessageManagement({
   profileId,
   onUpdate,
 }: {
-  messages: (Message & { sender: Profile })[];
+  messages: (Message & { sender?: Profile; receiver?: Profile })[];
   profileId: string;
   onUpdate: () => void;
 }) {
@@ -637,6 +839,15 @@ function MessageManagement({
       onUpdate();
     } catch (error) {
       console.error('Error marking as read:', error);
+    }
+  }
+
+  async function handleDeleteMessage(messageId: string) {
+    try {
+      await supabase.from('messages').delete().eq('id', messageId);
+      onUpdate();
+    } catch (error) {
+      console.error('Error deleting message:', error);
     }
   }
 
@@ -661,8 +872,8 @@ function MessageManagement({
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="font-display text-2xl font-bold text-white">Messages</h1>
+    <div className="space-y-8">
+      <h1 className="font-display text-3xl font-bold text-white">Messages</h1>
 
       {/* Reply Modal */}
       {replyingTo && (
@@ -703,51 +914,74 @@ function MessageManagement({
         {messages.length === 0 ? (
           <div className="text-center py-12 text-secondary-400">No messages yet</div>
         ) : (
-          messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`p-6 rounded-2xl ${
-                msg.read_at ? 'bg-secondary-800/30 border border-secondary-700/30' : 'bg-secondary-800/50 border border-secondary-700/50'
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-4 flex-1">
-                  <div className="w-12 h-12 rounded-full bg-primary-500/20 flex items-center justify-center text-primary-400 font-semibold">
-                    {msg.sender?.full_name?.charAt(0)}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="text-white font-medium">{msg.sender?.full_name}</p>
-                      {!msg.read_at && <span className="w-2 h-2 rounded-full bg-accent-400" />}
+          messages.map((msg) => {
+            const isOwn = msg.sender_id === profileId;
+            const otherParty = isOwn ? msg.receiver : msg.sender;
+            return (
+              <div
+                key={msg.id}
+                className={`group p-6 rounded-2xl ${
+                  isOwn
+                    ? 'bg-primary-500/10 border border-primary-500/20'
+                    : msg.read_at
+                    ? 'bg-secondary-800/30 border border-secondary-700/30'
+                    : 'bg-secondary-800/50 border border-secondary-700/50'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-4 flex-1 min-w-0">
+                    <div className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center font-semibold ${
+                      isOwn ? 'bg-primary-500/20 text-primary-400' : 'bg-accent-500/20 text-accent-400'
+                    }`}>
+                      {isOwn ? 'Y' : otherParty?.full_name?.charAt(0)}
                     </div>
-                    <p className="text-secondary-300">{msg.content}</p>
-                    <p className="text-secondary-500 text-sm mt-2">
-                      {format(parseISO(msg.created_at), 'MMM d, yyyy h:mm a')}
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="text-white font-medium">
+                          {isOwn ? 'You' : otherParty?.full_name}
+                        </p>
+                        {!isOwn && !msg.read_at && <span className="w-2 h-2 rounded-full bg-accent-400 shrink-0" />}
+                        {isOwn && <span className="text-xs text-primary-400 bg-primary-500/10 px-2 py-0.5 rounded-full">Sent</span>}
+                      </div>
+                      <p className="text-secondary-300">{msg.content}</p>
+                      <p className="text-secondary-500 text-sm mt-2">
+                        {format(parseISO(msg.created_at), 'MMM d, yyyy h:mm a')}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {!msg.read_at && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    {!isOwn && !msg.read_at && (
+                      <button
+                        onClick={() => handleMarkAsRead(msg.id)}
+                        className="p-2 text-secondary-400 hover:text-accent-400 transition-colors"
+                        title="Mark as read"
+                      >
+                        <Eye className="w-5 h-5" />
+                      </button>
+                    )}
+                    {!isOwn && (
+                      <button
+                        onClick={() =>
+                          setReplyingTo({ id: msg.id, senderId: msg.sender_id, content: msg.content })
+                        }
+                        className="p-2 text-secondary-400 hover:text-primary-400 transition-colors"
+                        title="Reply"
+                      >
+                        <Send className="w-5 h-5" />
+                      </button>
+                    )}
                     <button
-                      onClick={() => handleMarkAsRead(msg.id)}
-                      className="p-2 text-secondary-400 hover:text-accent-400"
-                      title="Mark as read"
+                      onClick={() => handleDeleteMessage(msg.id)}
+                      className="p-2 text-secondary-400 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                      title="Delete message"
                     >
-                      <Eye className="w-5 h-5" />
+                      <Trash2 className="w-5 h-5" />
                     </button>
-                  )}
-                  <button
-                    onClick={() =>
-                      setReplyingTo({ id: msg.id, senderId: msg.sender_id, content: msg.content })
-                    }
-                    className="p-2 text-secondary-400 hover:text-primary-400"
-                  >
-                    <Send className="w-5 h-5" />
-                  </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
@@ -1189,6 +1423,622 @@ function AnnouncementManagement({
           ))
         )}
       </div>
+    </div>
+  );
+}
+
+// Attendance Management Component
+function AttendanceManagement({
+  classes,
+  students,
+  attendance,
+  profileId,
+  onUpdate,
+}: {
+  classes: Class[];
+  students: Profile[];
+  attendance: Attendance[];
+  profileId: string;
+  onUpdate: () => void;
+}) {
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
+
+  const setStatus = async (studentId: string, status: AttendanceStatus) => {
+    if (!selectedClassId) return;
+    setSavingIds((prev) => new Set(prev).add(studentId));
+    try {
+      const existing = attendance.find(
+        (a) => a.class_id === selectedClassId && a.student_id === studentId
+      );
+      if (existing) {
+        if (existing.status === status) return;
+        const { error } = await supabase
+          .from('attendance')
+          .update({ status, marked_by: profileId })
+          .eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('attendance').insert({
+          class_id: selectedClassId,
+          student_id: studentId,
+          status,
+          marked_by: profileId,
+        });
+        if (error) throw error;
+      }
+      onUpdate();
+    } catch (error) {
+      console.error('Error saving attendance:', error);
+    } finally {
+      setSavingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(studentId);
+        return next;
+      });
+    }
+  };
+
+  const markAll = async (status: AttendanceStatus) => {
+    if (!selectedClassId || students.length === 0) return;
+    for (const s of students) {
+      await setStatus(s.id, status);
+    }
+  };
+
+  const clearAttendance = async () => {
+    if (!selectedClassId) return;
+    if (!confirm('Clear all attendance records for this class?')) return;
+    const { error } = await supabase.from('attendance').delete().eq('class_id', selectedClassId);
+    if (error) {
+      console.error('Error clearing attendance:', error);
+      return;
+    }
+    onUpdate();
+  };
+
+  const statusBtnCls = (isActive: boolean, color: string) =>
+    `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+      isActive ? `${color}` : 'bg-secondary-900/50 text-secondary-400 hover:text-white hover:bg-secondary-800'
+    }`;
+
+  const presentCount = selectedClassId
+    ? attendance.filter((a) => a.class_id === selectedClassId && a.status === 'present').length
+    : 0;
+  const absentCount = selectedClassId
+    ? attendance.filter((a) => a.class_id === selectedClassId && a.status === 'absent').length
+    : 0;
+  const lateCount = selectedClassId
+    ? attendance.filter((a) => a.class_id === selectedClassId && a.status === 'late').length
+    : 0;
+  const excusedCount = selectedClassId
+    ? attendance.filter((a) => a.class_id === selectedClassId && a.status === 'excused').length
+    : 0;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-white">Attendance Management</h1>
+          <p className="text-secondary-400 mt-1">Track and manage student attendance for each class.</p>
+        </div>
+        {selectedClassId && students.length > 0 && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => markAll('present')}
+              className="px-3 py-2 bg-green-500/10 text-green-400 hover:bg-green-500/20 rounded-lg text-sm font-medium transition-colors"
+            >
+              Mark All Present
+            </button>
+            <button
+              onClick={clearAttendance}
+              className="px-3 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg text-sm font-medium transition-colors"
+            >
+              Clear All
+            </button>
+          </div>
+        )}
+      </div>
+
+      {classes.length === 0 ? (
+        <div className="text-center py-12 text-secondary-400">
+          <CalendarDays className="w-12 h-12 mx-auto mb-3 opacity-40" />
+          <p>No classes available. Create a class first to take attendance.</p>
+        </div>
+      ) : (
+        <>
+          {/* Class selector */}
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {classes.map((c) => {
+              const isSelected = selectedClassId === c.id;
+              const classAttCount = attendance.filter((a) => a.class_id === c.id).length;
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => setSelectedClassId(c.id)}
+                  className={`flex-shrink-0 px-5 py-3 rounded-xl border-2 transition-all text-left ${
+                    isSelected
+                      ? 'bg-primary-500/10 border-primary-500'
+                      : 'bg-secondary-800/50 border-secondary-700/50 hover:border-secondary-600'
+                  }`}
+                >
+                  <div className="text-white font-medium whitespace-nowrap">{c.title}</div>
+                  <div className="text-secondary-400 text-xs mt-0.5">
+                    {format(parseISO(c.date), 'MMM d, yyyy')}
+                    {classAttCount > 0 && (
+                      <span className="ml-2 text-primary-400">{classAttCount} marked</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Attendance grid */}
+          {selectedClassId ? (
+            students.length === 0 ? (
+              <div className="text-center py-12 text-secondary-400">
+                <Users className="w-12 h-12 mx-auto mb-3 opacity-40" />
+                <p>No students enrolled yet.</p>
+              </div>
+            ) : (
+              <>
+                {/* Summary stats */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-secondary-800/50 border border-secondary-700/50 rounded-xl p-4">
+                    <div className="text-green-400 text-2xl font-bold">{presentCount}</div>
+                    <div className="text-secondary-400 text-sm">Present</div>
+                  </div>
+                  <div className="bg-secondary-800/50 border border-secondary-700/50 rounded-xl p-4">
+                    <div className="text-red-400 text-2xl font-bold">{absentCount}</div>
+                    <div className="text-secondary-400 text-sm">Absent</div>
+                  </div>
+                  <div className="bg-secondary-800/50 border border-secondary-700/50 rounded-xl p-4">
+                    <div className="text-yellow-400 text-2xl font-bold">{lateCount}</div>
+                    <div className="text-secondary-400 text-sm">Late</div>
+                  </div>
+                  <div className="bg-secondary-800/50 border border-secondary-700/50 rounded-xl p-4">
+                    <div className="text-blue-400 text-2xl font-bold">{excusedCount}</div>
+                    <div className="text-secondary-400 text-sm">Excused</div>
+                  </div>
+                </div>
+
+                {/* Student list */}
+                <div className="space-y-3">
+                  {students.map((student) => {
+                    const record = attendance.find(
+                      (a) => a.class_id === selectedClassId && a.student_id === student.id
+                    );
+                    const currentStatus = record?.status;
+                    const isSaving = savingIds.has(student.id);
+                    return (
+                      <div
+                        key={student.id}
+                        className={`flex items-center justify-between gap-4 p-4 rounded-xl border transition-colors ${
+                          currentStatus === 'absent'
+                            ? 'bg-red-500/5 border-red-500/30'
+                            : currentStatus === 'present'
+                            ? 'bg-green-500/5 border-green-500/30'
+                            : currentStatus === 'late'
+                            ? 'bg-yellow-500/5 border-yellow-500/30'
+                            : 'bg-secondary-800/50 border-secondary-700/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-full bg-secondary-700 flex items-center justify-center text-secondary-300 font-medium shrink-0">
+                            {student.full_name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-white font-medium truncate">{student.full_name}</div>
+                            <div className="text-secondary-400 text-sm truncate">{student.email}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {isSaving ? (
+                            <Loader2 className="w-5 h-5 animate-spin text-secondary-400" />
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => setStatus(student.id, 'present')}
+                                className={statusBtnCls(
+                                  currentStatus === 'present',
+                                  'bg-green-500/20 text-green-400'
+                                )}
+                              >
+                                <Check className="w-4 h-4" /> Present
+                              </button>
+                              <button
+                                onClick={() => setStatus(student.id, 'absent')}
+                                className={statusBtnCls(
+                                  currentStatus === 'absent',
+                                  'bg-red-500/20 text-red-400'
+                                )}
+                              >
+                                <XCircle className="w-4 h-4" /> Absent
+                              </button>
+                              <button
+                                onClick={() => setStatus(student.id, 'late')}
+                                className={statusBtnCls(
+                                  currentStatus === 'late',
+                                  'bg-yellow-500/20 text-yellow-400'
+                                )}
+                              >
+                                <Clock className="w-4 h-4" /> Late
+                              </button>
+                              <button
+                                onClick={() => setStatus(student.id, 'excused')}
+                                className={statusBtnCls(
+                                  currentStatus === 'excused',
+                                  'bg-blue-500/20 text-blue-400'
+                                )}
+                              >
+                                <MinusCircle className="w-4 h-4" /> Excused
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )
+          ) : (
+            <div className="text-center py-16 text-secondary-400">
+              <ClipboardCheck className="w-12 h-12 mx-auto mb-3 opacity-40" />
+              <p>Select a class above to take attendance</p>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// Class Notes Management Component (admin only)
+function ClassNotesManagement({
+  classes,
+  classNoteFiles,
+  profileId,
+  onUpdate,
+}: {
+  classes: Class[];
+  classNoteFiles: ClassNoteFile[];
+  profileId: string;
+  onUpdate: () => void;
+}) {
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadTitle, setUploadTitle] = useState('');
+  const [uploadDesc, setUploadDesc] = useState('');
+  const [dragOver, setDragOver] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showUploadForm, setShowUploadForm] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+
+  const inputCls =
+    'w-full bg-secondary-900 border border-secondary-700/50 rounded-lg px-4 py-2.5 text-white placeholder-secondary-500 focus:outline-none focus:border-primary-500 transition-colors';
+
+  const filesForClass = classNoteFiles.filter((f) => f.class_id === selectedClassId);
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const fileIcon = (type: string) => {
+    if (type.startsWith('image/')) return <Image className="w-5 h-5 text-blue-400" />;
+    if (type === 'application/pdf') return <FileText className="w-5 h-5 text-red-400" />;
+    if (type.includes('presentation') || type.includes('powerpoint'))
+      return <FileText className="w-5 h-5 text-orange-400" />;
+    if (type.includes('word') || type.includes('document'))
+      return <FileText className="w-5 h-5 text-blue-300" />;
+    return <File className="w-5 h-5 text-secondary-400" />;
+  };
+
+  const getPublicUrl = (path: string) => {
+    const { data } = supabase.storage.from('class-notes').getPublicUrl(path);
+    return data.publicUrl;
+  };
+
+  const handleFileDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      setPendingFile(file);
+      setUploadTitle(file.name.replace(/\.[^.]+$/, ''));
+      setShowUploadForm(true);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPendingFile(file);
+      setUploadTitle(file.name.replace(/\.[^.]+$/, ''));
+      setShowUploadForm(true);
+    }
+    e.target.value = '';
+  };
+
+  const handleUpload = async () => {
+    if (!pendingFile || !selectedClassId || !uploadTitle.trim()) return;
+    setUploading(true);
+    try {
+      const ext = pendingFile.name.split('.').pop();
+      const uniqueName = `${selectedClassId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+      const { error: storageErr } = await supabase.storage
+        .from('class-notes')
+        .upload(uniqueName, pendingFile, { upsert: false });
+      if (storageErr) throw storageErr;
+
+      const { error: dbErr } = await supabase.from('class_notes_files').insert({
+        class_id: selectedClassId,
+        title: uploadTitle.trim(),
+        description: uploadDesc.trim() || null,
+        file_path: uniqueName,
+        file_name: pendingFile.name,
+        file_size: pendingFile.size,
+        file_type: pendingFile.type,
+        uploaded_by: profileId,
+      });
+      if (dbErr) throw dbErr;
+
+      setUploadTitle('');
+      setUploadDesc('');
+      setPendingFile(null);
+      setShowUploadForm(false);
+      onUpdate();
+    } catch (err) {
+      console.error('Upload error:', err);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (file: ClassNoteFile) => {
+    if (!confirm(`Delete "${file.title}"? This cannot be undone.`)) return;
+    setDeletingId(file.id);
+    try {
+      await supabase.storage.from('class-notes').remove([file.file_path]);
+      await supabase.from('class_notes_files').delete().eq('id', file.id);
+      onUpdate();
+    } catch (err) {
+      console.error('Delete error:', err);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const cancelUpload = () => {
+    setPendingFile(null);
+    setUploadTitle('');
+    setUploadDesc('');
+    setShowUploadForm(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-display text-2xl font-bold text-white">Class Notes</h1>
+        <p className="text-secondary-400 mt-1">Upload and manage notes, slides, and documents for each class.</p>
+      </div>
+
+      {classes.length === 0 ? (
+        <div className="text-center py-12 text-secondary-400">
+          <CalendarDays className="w-12 h-12 mx-auto mb-3 opacity-40" />
+          <p>No classes available. Create a class first before adding notes.</p>
+        </div>
+      ) : (
+        <>
+          {/* Class selector */}
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {classes.map((c) => {
+              const isSelected = selectedClassId === c.id;
+              const fileCount = classNoteFiles.filter((f) => f.class_id === c.id).length;
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => { setSelectedClassId(c.id); setShowUploadForm(false); }}
+                  className={`flex-shrink-0 px-5 py-3 rounded-xl border-2 transition-all text-left ${
+                    isSelected
+                      ? 'bg-primary-500/10 border-primary-500'
+                      : 'bg-secondary-800/50 border-secondary-700/50 hover:border-secondary-600'
+                  }`}
+                >
+                  <div className="text-white font-medium whitespace-nowrap">{c.title}</div>
+                  <div className="text-secondary-400 text-xs mt-0.5">
+                    {format(parseISO(c.date), 'MMM d, yyyy')}
+                    {fileCount > 0 && (
+                      <span className="ml-2 text-primary-400">{fileCount} file{fileCount > 1 ? 's' : ''}</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {selectedClassId ? (
+            <div className="space-y-5">
+              {/* Upload form */}
+              {showUploadForm && pendingFile ? (
+                <div className="bg-secondary-800/60 border border-secondary-700/50 rounded-2xl p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-white font-semibold">Upload File</h3>
+                    <button onClick={cancelUpload} className="p-1.5 text-secondary-400 hover:text-white">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* File preview */}
+                  <div className="flex items-center gap-4 p-4 bg-secondary-900/60 rounded-xl border border-secondary-700/40">
+                    {pendingFile.type.startsWith('image/') ? (
+                      <img
+                        src={URL.createObjectURL(pendingFile)}
+                        alt="preview"
+                        className="w-16 h-16 object-cover rounded-lg"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-lg bg-secondary-700 flex items-center justify-center">
+                        {fileIcon(pendingFile.type)}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-white font-medium truncate">{pendingFile.name}</p>
+                      <p className="text-secondary-400 text-sm">{formatFileSize(pendingFile.size)}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-secondary-300 mb-1.5">Title *</label>
+                    <input
+                      type="text"
+                      value={uploadTitle}
+                      onChange={(e) => setUploadTitle(e.target.value)}
+                      placeholder="e.g. Week 3 Slides"
+                      className={inputCls}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-secondary-300 mb-1.5">Description <span className="text-secondary-500">(optional)</span></label>
+                    <textarea
+                      value={uploadDesc}
+                      onChange={(e) => setUploadDesc(e.target.value)}
+                      rows={2}
+                      placeholder="Short description of this file..."
+                      className={`${inputCls} resize-none`}
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-1">
+                    <button
+                      onClick={handleUpload}
+                      disabled={uploading || !uploadTitle.trim()}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium disabled:opacity-50 transition-colors"
+                    >
+                      {uploading ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading...</> : <><Upload className="w-4 h-4" /> Upload</>}
+                    </button>
+                    <button onClick={cancelUpload} className="px-5 py-2.5 bg-secondary-700 hover:bg-secondary-600 text-white rounded-lg font-medium transition-colors">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Drop zone */
+                <div
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={handleFileDrop}
+                  className={`relative border-2 border-dashed rounded-2xl p-10 text-center transition-all ${
+                    dragOver
+                      ? 'border-primary-500 bg-primary-500/10'
+                      : 'border-secondary-700/50 hover:border-secondary-600 bg-secondary-800/30'
+                  }`}
+                >
+                  <Upload className={`w-10 h-10 mx-auto mb-3 ${dragOver ? 'text-primary-400' : 'text-secondary-500'}`} />
+                  <p className="text-white font-medium mb-1">Drag & drop a file here</p>
+                  <p className="text-secondary-400 text-sm mb-4">Images, PDFs, PowerPoint, Word docs supported — up to 50 MB</p>
+                  <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium cursor-pointer transition-colors">
+                    <Plus className="w-4 h-4" /> Choose File
+                    <input
+                      type="file"
+                      className="sr-only"
+                      accept="image/*,.pdf,.ppt,.pptx,.doc,.docx,.txt"
+                      onChange={handleFileSelect}
+                    />
+                  </label>
+                </div>
+              )}
+
+              {/* Uploaded files list */}
+              {filesForClass.length > 0 ? (
+                <div className="space-y-3">
+                  <h3 className="text-white font-semibold">
+                    Uploaded Files
+                    <span className="ml-2 text-sm font-normal text-secondary-400">({filesForClass.length})</span>
+                  </h3>
+                  {filesForClass.map((file) => {
+                    const url = getPublicUrl(file.file_path);
+                    const isImage = file.file_type.startsWith('image/');
+                    return (
+                      <div
+                        key={file.id}
+                        className="flex items-start gap-4 p-4 bg-secondary-800/50 border border-secondary-700/50 rounded-xl hover:border-secondary-600 transition-colors"
+                      >
+                        {/* Thumbnail / icon */}
+                        {isImage ? (
+                          <img
+                            src={url}
+                            alt={file.title}
+                            className="w-14 h-14 object-cover rounded-lg shrink-0"
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded-lg bg-secondary-700 flex items-center justify-center shrink-0">
+                            {fileIcon(file.file_type)}
+                          </div>
+                        )}
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-medium truncate">{file.title}</p>
+                          {file.description && (
+                            <p className="text-secondary-400 text-sm mt-0.5 line-clamp-2">{file.description}</p>
+                          )}
+                          <div className="flex items-center gap-3 mt-1.5 text-xs text-secondary-500">
+                            <span>{file.file_name}</span>
+                            <span>{formatFileSize(file.file_size)}</span>
+                            <span>{format(parseISO(file.created_at), 'MMM d, yyyy')}</span>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 text-secondary-400 hover:text-primary-400 transition-colors"
+                            title="Open"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                          <a
+                            href={url}
+                            download={file.file_name}
+                            className="p-2 text-secondary-400 hover:text-primary-400 transition-colors"
+                            title="Download"
+                          >
+                            <Download className="w-4 h-4" />
+                          </a>
+                          <button
+                            onClick={() => handleDelete(file)}
+                            disabled={deletingId === file.id}
+                            className="p-2 text-secondary-400 hover:text-red-400 transition-colors disabled:opacity-50"
+                            title="Delete"
+                          >
+                            {deletingId === file.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                !showUploadForm && (
+                  <p className="text-center text-secondary-500 py-4">No files uploaded for this class yet.</p>
+                )
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-16 text-secondary-400">
+              <StickyNote className="w-12 h-12 mx-auto mb-3 opacity-40" />
+              <p>Select a class above to manage its notes and files</p>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

@@ -303,6 +303,7 @@ export default function LandingPage() {
   const path = pathData[activePath];
 
   const navLinks = [
+    { href: '/about', label: 'About Us' },
     { href: '#why', label: 'Why Join' },
     { href: '#experience', label: "What You'll Do" },
     { href: '#sessions', label: 'Sessions' },
@@ -324,9 +325,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           {/* Brand */}
           <a href="#home" className="flex items-center gap-3" aria-label="AI Centre home">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center text-white font-bold text-sm">
-              AI
-            </div>
+            <img src="/files_10604804-2026-06-17T04-45-00-187Z-unnamed.png" className="w-9 h-9 object-contain rounded-lg" alt="AI Club" />
             <div className="leading-tight">
               <div className="text-white font-bold text-sm">AI Centre</div>
               <div className="text-gray-500 text-xs">Vidyashilp Academy</div>
@@ -335,9 +334,13 @@ export default function LandingPage() {
 
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-7" aria-label="Primary">
-            {navLinks.map((l) => (
-              <a key={l.href} href={l.href} className="text-gray-400 hover:text-white text-sm transition-colors">{l.label}</a>
-            ))}
+            {navLinks.map((l) =>
+              l.href.startsWith('#') ? (
+                <a key={l.href} href={l.href} className="text-gray-400 hover:text-white text-sm transition-colors">{l.label}</a>
+              ) : (
+                <Link key={l.href} to={l.href} className="text-gray-400 hover:text-white text-sm transition-colors">{l.label}</Link>
+              )
+            )}
             {user ? (
               <Link to="/dashboard" className="btn-shine px-4 py-2 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-cyan-500/25 transition-all">
                 Dashboard
@@ -360,9 +363,13 @@ export default function LandingPage() {
 
         {mobileOpen && (
           <div className="md:hidden glass mt-3 mx-4 rounded-xl p-4 flex flex-col gap-4">
-            {navLinks.map((l) => (
-              <a key={l.href} href={l.href} className="text-gray-300 hover:text-white text-sm transition-colors" onClick={() => setMobileOpen(false)}>{l.label}</a>
-            ))}
+            {navLinks.map((l) =>
+              l.href.startsWith('#') ? (
+                <a key={l.href} href={l.href} className="text-gray-300 hover:text-white text-sm transition-colors" onClick={() => setMobileOpen(false)}>{l.label}</a>
+              ) : (
+                <Link key={l.href} to={l.href} className="text-gray-300 hover:text-white text-sm transition-colors" onClick={() => setMobileOpen(false)}>{l.label}</Link>
+              )
+            )}
             <hr className="border-white/10" />
             {user ? (
               <Link to="/dashboard" className="text-center py-2.5 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-lg text-sm font-semibold">Dashboard</Link>
@@ -774,7 +781,7 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-4 gap-8 mb-10">
             <div>
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center text-white font-bold text-xs">AI</div>
+                <img src="/files_10604804-2026-06-17T04-45-00-187Z-unnamed.png" className="w-8 h-8 object-contain rounded-lg" alt="AI Club" />
                 <div>
                   <p className="text-white font-bold text-sm">AI Centre</p>
                   <p className="text-gray-600 text-xs">Vidyashilp Academy</p>
@@ -785,7 +792,8 @@ export default function LandingPage() {
             <div>
               <p className="font-semibold text-white text-sm mb-3">Navigation</p>
               <ul className="space-y-2">
-                {navLinks.map((l) => (
+                <li><Link to="/about" className="text-gray-500 hover:text-cyan-400 transition-colors text-xs">About Us</Link></li>
+                {navLinks.filter(l => l.href.startsWith('#')).map((l) => (
                   <li key={l.href}><a href={l.href} className="text-gray-500 hover:text-cyan-400 transition-colors text-xs">{l.label}</a></li>
                 ))}
               </ul>

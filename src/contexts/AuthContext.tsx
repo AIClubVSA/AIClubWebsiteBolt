@@ -17,12 +17,11 @@ interface AuthContextType {
   profile: Profile | null;
   session: Session | null;
   loading: boolean;
-  // Sign-in flow: send OTP → verify OTP (signs in automatically)
   sendSignInOtp: (email: string) => Promise<{ error: string | null }>;
   verifySignInOtp: (email: string, token: string) => Promise<{ error: string | null }>;
-  // Sign-up flow: send OTP → verify OTP → create profile
   sendSignUpOtp: (email: string) => Promise<{ error: string | null }>;
   verifySignUpOtp: (email: string, token: string, fullName: string, password: string) => Promise<{ error: string | null }>;
+  signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -42,12 +41,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       else setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       (async () => {
         setSession(session);
         setUser(session?.user ?? null);
-        if (session?.user) await fetchProfile(session.user.id);
-        else { setProfile(null); setLoading(false); }
+        if (session?.user) {
+          // On first OAuth sign-in, create a profile if one doesn't exist yet
+          if (event === 'SIGNED_IN') {
+            await ensureProfile(session.user);
+          }
+          await fetchProfile(session.user.id);
+        } else {
+          setProfile(null);
+          setLoading(false);
+        }
       })();
     });
 
@@ -70,8 +77,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Creates a profile row for OAuth users on their first sign-in
+  async function ensureProfile(user: User) {
+    try {
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (existing) return;
+
+      const fullName =
+        user.user_metadata?.full_name ||
+        user.user_metadata?.name ||
+        user.email?.split('@')[0] ||
+        'Student';
+
+      await supabase.from('profiles').insert({
+        id: user.id,
+        email: user.email ?? '',
+        full_name: fullName,
+        role: 'student',
+        avatar_url: user.user_metadata?.avatar_url ?? null,
+      });
+    } catch (e) {
+      console.error('Error ensuring profile:', e);
+    }
+  }
+
   async function sendSignInOtp(email: string): Promise<{ error: string | null }> {
-    // shouldCreateUser: false means Supabase returns an error if the user doesn't exist
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { shouldCreateUser: false },
@@ -93,7 +127,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function sendSignUpOtp(email: string): Promise<{ error: string | null }> {
-    // Check profiles table directly — more reliable than a separate edge function call
     const { data: existing } = await supabase
       .from('profiles')
       .select('id')
@@ -115,18 +148,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fullName: string,
     password: string,
   ): Promise<{ error: string | null }> {
-    // Verify the OTP — this creates the auth.users row and signs in
     const { data, error: verifyErr } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
     if (verifyErr) return { error: verifyErr.message };
 
     const userId = data.user?.id;
     if (!userId) return { error: 'Verification succeeded but no user returned.' };
 
-    // Set the password so the user can also use password-based sign-in later if needed
     const { error: pwErr } = await supabase.auth.updateUser({ password });
     if (pwErr) console.warn('Could not set password:', pwErr.message);
 
-    // Create profile
     const { error: profileErr } = await supabase.from('profiles').insert({
       id: userId,
       email,
@@ -140,6 +170,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null };
   }
 
+  async function signInWithGoogle(): Promise<{ error: string | null }> {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/dashboard`,
+      },
+    });
+    if (error) return { error: error.message };
+    return { error: null };
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
   }
@@ -149,6 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user, profile, session, loading,
       sendSignInOtp, verifySignInOtp,
       sendSignUpOtp, verifySignUpOtp,
+      signInWithGoogle,
       signOut,
     }}>
       {children}
