@@ -34,12 +34,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) fetchProfile(session.user.id);
-      else setLoading(false);
-    });
+    // Check if this is an OAuth callback (tokens in URL hash)
+    const isOAuthCallback = window.location.hash.includes('access_token');
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       (async () => {
@@ -58,7 +54,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })();
     });
 
-    return () => subscription.unsubscribe();
+    // For OAuth callbacks, onAuthStateChange will fire with the session
+    // For normal page loads, we need to call getSession()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      } else if (!isOAuthCallback) {
+        // Only set loading false if no session AND this isn't an OAuth callback
+        // (OAuth callbacks need to wait for onAuthStateChange to process tokens)
+        setLoading(false);
+      }
+    });
+
+    // Safety timeout: if OAuth callback doesn't complete within 5 seconds, stop loading
+    let safetyTimeout: ReturnType<typeof setTimeout> | null = null;
+    if (isOAuthCallback) {
+      safetyTimeout = setTimeout(() => {
+        setLoading(false);
+      }, 5000);
+    }
+
+    return () => {
+      subscription.unsubscribe();
+      if (safetyTimeout) clearTimeout(safetyTimeout);
+    };
   }, []);
 
   async function fetchProfile(userId: string) {
