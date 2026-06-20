@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
@@ -33,73 +33,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Check if this is an OAuth callback (tokens in URL hash)
-    const isOAuthCallback = window.location.hash.includes('access_token');
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      (async () => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          // On first OAuth sign-in, create a profile if one doesn't exist yet
-          if (event === 'SIGNED_IN') {
-            await ensureProfile(session.user);
-          }
-          await fetchProfile(session.user.id);
-        } else {
-          setProfile(null);
-          setLoading(false);
-        }
-      })();
-    });
-
-    // For OAuth callbacks, onAuthStateChange will fire with the session
-    // For normal page loads, we need to call getSession()
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else if (!isOAuthCallback) {
-        // Only set loading false if no session AND this isn't an OAuth callback
-        // (OAuth callbacks need to wait for onAuthStateChange to process tokens)
-        setLoading(false);
-      }
-    });
-
-    // Safety timeout: if OAuth callback doesn't complete within 5 seconds, stop loading
-    let safetyTimeout: ReturnType<typeof setTimeout> | null = null;
-    if (isOAuthCallback) {
-      safetyTimeout = setTimeout(() => {
-        setLoading(false);
-      }, 5000);
-    }
-
-    return () => {
-      subscription.unsubscribe();
-      if (safetyTimeout) clearTimeout(safetyTimeout);
-    };
-  }, []);
-
-  async function fetchProfile(userId: string) {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-      if (error) throw error;
-      setProfile(data);
-    } catch (e) {
-      console.error('Error fetching profile:', e);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   // Creates a profile row for OAuth users on their first sign-in
-  async function ensureProfile(user: User) {
+  const ensureProfile = useCallback(async (user: User) => {
     try {
       const { data: existing } = await supabase
         .from('profiles')
@@ -124,7 +59,116 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.error('Error ensuring profile:', e);
     }
-  }
+  }, []);
+
+  const fetchProfile = useCallback(async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+      if (error) throw error;
+      setProfile(data);
+    } catch (e) {
+      console.error('Error fetching profile:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function handleAuthCallback() {
+      // Check for OAuth callback - either PKCE (code in search) or implicit (tokens in hash)
+      const urlParams = new URLSearchParams(window.location.search);
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+
+      const authCode = urlParams.get('code');
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+
+      const isPKCECallback = !!authCode;
+      const isImplicitCallback = !!(accessToken && refreshToken);
+
+      try {
+        let session: Session | null = null;
+        let sessionUser: User | null = null;
+
+        if (isPKCECallback) {
+          // PKCE flow - exchange code for session
+          const { data, error } = await supabase.auth.exchangeCodeForSession(authCode!);
+          if (error) {
+            console.error('PKCE exchange error:', error);
+            if (mounted) setLoading(false);
+            return;
+          }
+          session = data.session;
+          sessionUser = data.session?.user ?? null;
+          // Clean URL - remove code param
+          window.history.replaceState(null, '', window.location.pathname);
+        } else if (isImplicitCallback) {
+          // Implicit flow - set session from tokens
+          const { data, error } = await supabase.auth.setSession(accessToken!, refreshToken!);
+          if (error) {
+            console.error('Implicit session error:', error);
+            if (mounted) setLoading(false);
+            return;
+          }
+          session = data.session;
+          sessionUser = data.session?.user ?? null;
+          // Clean URL - remove hash
+          window.history.replaceState(null, '', window.location.pathname);
+        } else {
+          // Normal page load - get existing session
+          const { data: { session: existingSession } } = await supabase.auth.getSession();
+          session = existingSession;
+          sessionUser = existingSession?.user ?? null;
+        }
+
+        if (!mounted) return;
+
+        if (sessionUser) {
+          await ensureProfile(sessionUser);
+          setSession(session);
+          setUser(sessionUser);
+          await fetchProfile(sessionUser.id);
+        } else {
+          setLoading(false);
+        }
+      } catch (e) {
+        console.error('Auth callback error:', e);
+        if (mounted) setLoading(false);
+      }
+    }
+
+    handleAuthCallback();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted) return;
+
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+          if (event === 'SIGNED_IN') {
+            await ensureProfile(session.user);
+          }
+          await fetchProfile(session.user.id);
+        } else {
+          setProfile(null);
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [ensureProfile, fetchProfile]);
 
   async function sendSignInOtp(email: string): Promise<{ error: string | null }> {
     const { error } = await supabase.auth.signInWithOtp({
@@ -195,7 +239,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/dashboard`,
+        redirectTo: window.location.origin,
       },
     });
     if (error) return { error: error.message };
@@ -204,6 +248,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signOut() {
     await supabase.auth.signOut();
+    setUser(null);
+    setProfile(null);
+    setSession(null);
   }
 
   return (
