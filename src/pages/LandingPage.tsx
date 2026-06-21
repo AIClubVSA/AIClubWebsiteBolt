@@ -1,834 +1,633 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import {
-  Brain,
-  Code2,
-  Sparkles,
-  Users,
-  Calendar,
-  ArrowRight,
-  ChevronDown,
-  ChevronRight,
-  Zap,
-  Menu,
-  X,
-  Loader2,
-  CheckCircle,
-  AlertCircle,
-  Github,
-  Twitter,
-  Linkedin,
-  Hammer,
-  Palette,
-  Star,
-  Cpu,
-  BookOpen,
-  Trophy,
-  Lightbulb,
-  MessageSquare,
-  Plus,
-  Minus,
-} from 'lucide-react';
-import {
-  getFeaturedEvents,
-  getFeaturedTestimonials,
-  signupNewsletter,
-  type Event,
-  type Testimonial,
-} from '../lib/supabase';
+import { useEffect, useRef, useState, useCallback } from "react";
+import { Link } from "react-router-dom";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { ScrollToPlugin } from "gsap/ScrollToPlugin";
+import { ArrowUpRight, ArrowRight, Plus } from "lucide-react";
+import InfiniteMenu from "../components/InfiniteMenu";
+import FlowingMenu from "../components/FlowingMenu";
+import Hyperspeed from "../components/Hyperspeed";
 
-function useScrollProgress() {
-  const [progress, setProgress] = useState(0);
-  useEffect(() => {
-    const handleScroll = () => {
-      const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
-      setProgress((window.scrollY / totalHeight) * 100);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-  return progress;
-}
+gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
 
-function useScrollReveal() {
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) entry.target.classList.add('active');
-        });
-      },
-      { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
-    );
-    document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-scale').forEach((el) =>
-      observer.observe(el)
-    );
-    return () => observer.disconnect();
-  }, []);
-}
-
-function Counter({ value, suffix = '' }: { value: number; suffix?: string }) {
-  const [count, setCount] = useState(0);
-  const ref = useRef<HTMLSpanElement>(null);
-  const [animated, setAnimated] = useState(false);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !animated) {
-          setAnimated(true);
-          let start = 0;
-          const step = value / (2000 / 16);
-          const timer = setInterval(() => {
-            start += step;
-            if (start >= value) { setCount(value); clearInterval(timer); }
-            else setCount(Math.floor(start));
-          }, 16);
-        }
-      },
-      { threshold: 0.5 }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [value, animated]);
-
-  return <span ref={ref}>{count}{suffix}</span>;
-}
-
-function Particles() {
-  const particles = Array.from({ length: 25 }, (_, i) => ({
-    id: i,
-    left: Math.random() * 100,
-    delay: Math.random() * 10,
-    duration: 8 + Math.random() * 4,
-    size: 2 + Math.random() * 3,
-  }));
-  return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {particles.map((p) => (
-        <div
-          key={p.id}
-          className="particle"
-          style={{ left: `${p.left}%`, bottom: '-10px', width: p.size, height: p.size, animationDelay: `${p.delay}s`, animationDuration: `${p.duration}s` }}
-        />
-      ))}
-    </div>
-  );
-}
-
-function NeuralNetwork() {
-  return (
-    <svg className="absolute inset-0 w-full h-full opacity-20" viewBox="0 0 1000 600" aria-hidden="true">
-      <defs>
-        <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#0ea5e9" stopOpacity="0.5" />
-          <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.1" />
-        </linearGradient>
-      </defs>
-      <g className="data-stream" fill="none" stroke="url(#lineGrad)" strokeWidth="1">
-        <path d="M0,300 Q250,100 500,300 T1000,300" />
-        <path d="M0,200 Q250,400 500,200 T1000,200" />
-        <path d="M0,400 Q250,200 500,400 T1000,400" />
-        <path d="M100,0 Q300,300 100,600" />
-        <path d="M300,0 Q500,300 300,600" />
-        <path d="M500,0 Q700,300 500,600" />
-        <path d="M700,0 Q900,300 700,600" />
-        <path d="M900,0 Q1100,300 900,600" />
-      </g>
-      {[[100,300],[250,150],[400,350],[550,200],[700,400],[850,250],[175,400],[325,100],[475,500],[625,150],[775,350],[925,200]].map(([x,y],i) => (
-        <circle key={i} cx={x} cy={y} r="4" fill="#0ea5e9" className="node-pulse" style={{ animationDelay: `${i * 0.3}s` }} />
-      ))}
-    </svg>
-  );
-}
-
-const pathData: Record<string, { label: string; title: string; text: string; items: { icon: React.ElementType; heading: string; body: string }[] }> = {
-  beginner: {
-    label: 'Beginner path',
-    title: 'Learn the basics without feeling behind.',
-    text: "You'll get plain-English explanations, low-pressure demos, and guided practice so AI stops feeling intimidating and starts feeling usable.",
-    items: [
-      { icon: BookOpen, heading: 'Plain-English sessions', body: 'No jargon. We explain everything as if you just arrived.' },
-      { icon: Lightbulb, heading: 'Guided demos', body: 'Watch, follow, then try. No one left behind.' },
-      { icon: Sparkles, heading: 'Quick wins', body: 'Build something you can show in your first few weeks.' },
-    ],
-  },
-  builder: {
-    label: 'Builder path',
-    title: 'Turn your coding skills into actual AI projects.',
-    text: "If you already know a bit of Python or web dev, you'll build real tools — chatbots, classifiers, image generators — and learn how to deploy them.",
-    items: [
-      { icon: Code2, heading: 'APIs & models', body: 'Use OpenAI, Gemini, Hugging Face in your own builds.' },
-      { icon: Hammer, heading: 'Build sprints', body: 'Ship a working project every 3–4 weeks.' },
-      { icon: Trophy, heading: 'Competitions', body: 'Enter inter-school AI challenges and hackathons.' },
-    ],
-  },
-  creator: {
-    label: 'Creator path',
-    title: 'Use AI as a creative superpower.',
-    text: "You don't need to code. Use AI tools for design, writing, storytelling, music, and more. Bring your creative ideas to life faster than ever.",
-    items: [
-      { icon: Palette, heading: 'Generative art', body: 'Create stunning visuals and animations with AI.' },
-      { icon: MessageSquare, heading: 'AI writing', body: 'Craft stories, scripts, and presentations with AI assistance.' },
-      { icon: Cpu, heading: 'No-code tools', body: 'Build impressive projects without writing a single line of code.' },
-    ],
-  },
-  leader: {
-    label: 'Leader path',
-    title: 'Shape the direction of the club and your future.',
-    text: "Take on a leadership role — run sessions, organise events, mentor newer members. These are the skills that stand out on applications.",
-    items: [
-      { icon: Users, heading: 'Run sessions', body: 'Lead workshops and teach what you know to others.' },
-      { icon: Calendar, heading: 'Organise events', body: 'Plan competitions, demos, and community projects.' },
-      { icon: Star, heading: 'Build your profile', body: 'Get recognition that matters for university and career applications.' },
-    ],
+const HYPER_OPTIONS = {
+  distortion: "turbulentDistortion",
+  length: 400,
+  roadWidth: 9,
+  islandWidth: 2,
+  lanesPerRoad: 3,
+  fov: 90,
+  fovSpeedUp: 150,
+  speedUp: 2,
+  carLightsFade: 0.4,
+  totalSideLightSticks: 50,
+  lightPairsPerRoadWay: 50,
+  movingAwaySpeed: [60, 80] as [number, number],
+  movingCloserSpeed: [-120, -160] as [number, number],
+  carLightsLength: [400 * 0.05, 400 * 0.2] as [number, number],
+  carLightsRadius: [0.05, 0.14] as [number, number],
+  carWidthPercentage: [0.3, 0.5] as [number, number],
+  carShiftX: [-0.2, 0.2] as [number, number],
+  carFloorSeparation: [0.05, 1] as [number, number],
+  colors: {
+    roadColor: 0x080808,
+    islandColor: 0x0a0a0a,
+    background: 0x000000,
+    shoulderLines: 0x131318,
+    brokenLines: 0x131318,
+    leftCars: [0x6366f1, 0x8b5cf6, 0xc247ac],
+    rightCars: [0x06b6d4, 0x0e5ea5, 0x324555],
+    sticks: 0x06b6d4,
   },
 };
 
-const sessionData = [
-  { icon: Brain, title: 'Core sessions', body: 'Structured learning on a key AI concept — explained clearly, then practised hands-on.' },
-  { icon: Hammer, title: 'Build labs', body: 'Open time to work on projects with support from peers and mentors.' },
-  { icon: Trophy, title: 'Showcase demos', body: 'Present what you built. Get feedback. Celebrate progress together.' },
-];
+function splitChars(el: HTMLElement): HTMLElement[] {
+  const text = el.textContent || "";
+  el.textContent = "";
+  const spans: HTMLElement[] = [];
+  const words = text.split(" ");
+  words.forEach((word, wi) => {
+    const wordSpan = document.createElement("span");
+    wordSpan.style.display = "inline-block";
+    wordSpan.style.whiteSpace = "nowrap";
+    for (const ch of word) {
+      const s = document.createElement("span");
+      s.style.display = "inline-block";
+      s.style.willChange = "transform";
+      s.textContent = ch;
+      wordSpan.appendChild(s);
+      spans.push(s);
+    }
+    el.appendChild(wordSpan);
+    if (wi < words.length - 1) {
+      el.appendChild(document.createTextNode(" "));
+    }
+  });
+  return spans;
+}
 
-const toolsData = [
-  { name: 'ChatGPT / Claude', desc: 'For experimenting with prompts, reasoning, and language tasks.' },
-  { name: 'Google Colab', desc: 'Free, browser-based Python environment — no install needed.' },
-  { name: 'Canva AI / Adobe Firefly', desc: 'AI-powered design tools for visual creators.' },
-  { name: 'Hugging Face', desc: 'Explore and use open-source AI models easily.' },
-  { name: 'Scratch + ML for Kids', desc: 'Beginner-friendly machine learning projects.' },
-  { name: 'Teachable Machine', desc: 'Train a model with your own data in minutes.' },
-];
-
-const faqData = [
-  { q: 'Do I need to know how to code?', a: "No. The club has tracks for complete beginners. You'll learn alongside others, and coding is just one of many paths — design, writing, and leading are equally valued." },
-  { q: 'How often does the club meet?', a: 'We meet weekly during a dedicated club period. Most projects and activities happen during school hours, with some optional extended sessions for competitions or big builds.' },
-  { q: 'Will I actually build something, or just watch?', a: "You'll build things. That's the whole point. From your first session, the goal is to make something you can show — even if it's small. We believe building beats watching every time." },
-  { q: "What if I get stuck or don't understand something?", a: "That's expected and totally fine. We have a support structure — senior members, teacher advisors, and a collaborative group chat so no one is left stuck for long." },
-  { q: 'Can this help me with university applications?', a: "Yes. Real projects, leadership roles, and competition results are all things you can write about. The club is designed to give you concrete, credible things to point to." },
-];
-
-function FaqItem({ question, answer }: { question: string; answer: string }) {
-  const [open, setOpen] = useState(false);
+function SpatialBackground() {
   return (
-    <div className="glass rounded-xl overflow-hidden reveal">
-      <button
-        className="w-full flex items-center justify-between px-6 py-5 text-left hover:bg-white/5 transition-colors"
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
-      >
-        <span className="font-semibold text-white pr-4">{question}</span>
-        {open ? <Minus className="w-5 h-5 text-cyan-400 shrink-0" /> : <Plus className="w-5 h-5 text-cyan-400 shrink-0" />}
-      </button>
-      {open && (
-        <div className="px-6 pb-5 text-gray-400 leading-relaxed border-t border-white/5 pt-4">
-          {answer}
-        </div>
-      )}
+    <div className="spatial" aria-hidden>
+      <div className="spatial-grid" />
+      <div className="blob" style={{ width: 620, height: 620, top: "-8%", left: "-6%", background: "radial-gradient(circle, rgba(99,102,241,0.55), transparent 65%)", opacity: 0.4 }} />
+      <div className="blob" style={{ width: 540, height: 540, top: "32%", right: "-10%", background: "radial-gradient(circle, rgba(6,182,212,0.42), transparent 65%)", opacity: 0.32 }} />
+      <div className="blob" style={{ width: 700, height: 700, bottom: "-12%", left: "20%", background: "radial-gradient(circle, rgba(139,92,246,0.45), transparent 65%)", opacity: 0.3 }} />
     </div>
   );
 }
 
-function EventCard({ title, date, time, type, description }: { title: string; date: string; time: string; type: string; description: string }) {
-  const typeStyles: Record<string, string> = {
-    Workshop: 'bg-cyan-500/20 text-cyan-400',
-    Talk: 'bg-emerald-500/20 text-emerald-400',
-    Hackathon: 'bg-violet-500/20 text-violet-400',
-  };
-  return (
-    <div className="reveal glass rounded-2xl p-6 card-hover group">
-      <div className="flex items-start justify-between mb-4">
-        <span className={`px-3 py-1 rounded-full text-sm font-medium ${typeStyles[type] || typeStyles.Workshop}`}>{type}</span>
-        <Calendar className="w-5 h-5 text-gray-500 group-hover:text-cyan-400 transition-colors" />
-      </div>
-      <h3 className="text-lg font-semibold mb-2 text-white group-hover:text-cyan-400 transition-colors">{title}</h3>
-      <p className="text-gray-400 text-sm mb-4">{description}</p>
-      <div className="flex items-center gap-3 text-sm text-gray-500">
-        <span>{date}</span>
-        <span className="w-1 h-1 rounded-full bg-gray-600" />
-        <span>{time}</span>
-      </div>
-    </div>
-  );
+function CustomCursor() {
+  const dotRef = useRef<HTMLDivElement>(null);
+  const ringRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!window.matchMedia("(pointer: fine)").matches) return;
+    const dot = dotRef.current!, ring = ringRef.current!;
+    document.body.classList.add("cursor-active");
+    gsap.set([dot, ring], { xPercent: -50, yPercent: -50, opacity: 1 });
+    const dx = gsap.quickTo(dot, "x", { duration: 0.12, ease: "power3" });
+    const dy = gsap.quickTo(dot, "y", { duration: 0.12, ease: "power3" });
+    const rx = gsap.quickTo(ring, "x", { duration: 0.42, ease: "power3" });
+    const ry = gsap.quickTo(ring, "y", { duration: 0.42, ease: "power3" });
+    const move = (e: MouseEvent) => { dx(e.clientX); dy(e.clientY); rx(e.clientX); ry(e.clientY); };
+    const sel = "a, button, [data-cursor]";
+    const over = (e: MouseEvent) => { if ((e.target as Element).closest?.(sel)) ring.classList.add("hover"); };
+    const out = (e: MouseEvent) => { if ((e.target as Element).closest?.(sel)) ring.classList.remove("hover"); };
+    const leave = () => gsap.to([dot, ring], { opacity: 0, duration: 0.2 });
+    const enter = () => gsap.to([dot, ring], { opacity: 1, duration: 0.2 });
+    window.addEventListener("mousemove", move);
+    document.addEventListener("mouseover", over);
+    document.addEventListener("mouseout", out);
+    document.documentElement.addEventListener("mouseleave", leave);
+    document.documentElement.addEventListener("mouseenter", enter);
+    return () => {
+      window.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseover", over);
+      document.removeEventListener("mouseout", out);
+      document.documentElement.removeEventListener("mouseleave", leave);
+      document.documentElement.removeEventListener("mouseenter", enter);
+      document.body.classList.remove("cursor-active");
+    };
+  }, []);
+  return (<>
+    <div ref={ringRef} className="cursor-ring" />
+    <div ref={dotRef} className="cursor-dot" />
+  </>);
 }
+
+const OFFERINGS = [
+  { n: "01", t: "Hands-on Learning", d: "Workshops and labs where members learn the fundamentals of machine learning by building, not just watching.", img: "/images/learn.jpg" },
+  { n: "02", t: "Coding & AI Tools", d: "Practical sessions with modern AI tooling and frameworks — from first scripts to working models.", img: "/images/coding.jpg" },
+  { n: "03", t: "Ethical Discussions", d: "Open forums on responsible AI: bias, fairness, privacy, and the impact of technology on society.", img: "/images/discuss.jpg" },
+  { n: "04", t: "Competitions", d: "Team entries into AI and machine-learning challenges that test skill under real constraints.", img: "/images/compete.jpg" },
+  { n: "05", t: "Hackathons", d: "Intensive build sprints where members prototype, collaborate, and ship ideas end to end.", img: "/images/hackathon.jpg" },
+  { n: "06", t: "Research Projects", d: "Student-led investigations into open questions, mentored from proposal through to results.", img: "/images/research.jpg" },
+  { n: "07", t: "Global Outreach", d: "Connections with the wider AI community and opportunities that reach beyond the classroom.", img: "/images/outreach.jpg" },
+];
+
+const MENU_ITEMS = [
+  { image: "/images/learn-python.jpg", link: "/login", title: "Python Programming", description: "Write your first code and AI scripts from scratch." },
+  { image: "/images/learn-ml.jpg", link: "/login", title: "Machine Learning", description: "Train models that learn patterns from real data." },
+  { image: "/images/learn-deep.jpg", link: "/login", title: "Deep Learning", description: "Build neural networks and run them on real hardware." },
+  { image: "/images/learn-robotics.jpg", link: "/login", title: "Robotics", description: "Program robots that sense, decide, and respond." },
+  { image: "/images/learn-build.jpg", link: "/login", title: "Hands-on Builds", description: "Prototype with sensors, boards, and hardware kits." },
+  { image: "/images/learn-applied.jpg", link: "/login", title: "Applied AI", description: "Solve real-world problems with automation." },
+  { image: "/images/learn-tools.jpg", link: "/login", title: "Developer Tools", description: "Master the editors and workflows engineers use." },
+  { image: "/images/learn-ship.jpg", link: "/login", title: "Ship Projects", description: "Take ideas from prototype to a working demo." },
+];
+
+const FLOW_ITEMS = [
+  { link: "#gallery", text: "The Programme", image: "/images/discuss.jpg" },
+  { link: "#explore", text: "What You Learn", image: "/images/learn-python.jpg" },
+  { link: "#pillars", text: "Our Principles", image: "/images/outreach.jpg" },
+  { link: "/login", text: "Join the Club", image: "/images/cta.jpg" },
+];
+
+const PILLAR_FLOW = [
+  { link: "#join", text: "Technical Skill", image: "/images/learn-tools.jpg" },
+  { link: "#join", text: "Critical Thinking", image: "/images/research.jpg" },
+  { link: "#join", text: "Leadership", image: "/images/hackathon.jpg" },
+  { link: "#join", text: "Innovation", image: "/images/learn-deep.jpg" },
+];
+
+const PILLARS = [
+  { k: "Technical skill", d: "Real competence with the tools and methods of modern AI." },
+  { k: "Critical thinking", d: "The judgement to ask better questions, not just produce answers." },
+  { k: "Leadership", d: "Members who organise, mentor, and carry projects forward." },
+  { k: "Innovation", d: "A bias toward building things that did not exist before." },
+];
+
+const MANIFESTO = "AI Centre is a student-led community where members learn, build, collaborate, and responsibly shape the future of artificial intelligence.";
 
 export default function LandingPage() {
-  const scrollProgress = useScrollProgress();
-  useScrollReveal();
-  const { user } = useAuth();
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [activePath, setActivePath] = useState<keyof typeof pathData>('beginner');
-  const [events, setEvents] = useState<Event[]>([]);
-  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
-  const [email, setEmail] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState('');
+  const [activeSection, setActiveSection] = useState(0);
+  const spotlight = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const el = e.currentTarget;
+    const r = el.getBoundingClientRect();
+    el.style.setProperty("--mx", `${e.clientX - r.left}px`);
+    el.style.setProperty("--my", `${e.clientY - r.top}px`);
+  }, []);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 50);
-    window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   useEffect(() => {
-    Promise.all([getFeaturedEvents(), getFeaturedTestimonials()]).then(([ev, te]) => {
-      setEvents(ev);
-      setTestimonials(te);
-    }).catch(console.error);
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({ defaults: { ease: "expo.out" } });
+      tl.from(".hero-line span", { yPercent: 120, rotateX: -55, transformOrigin: "50% 0%", duration: 1.2, stagger: 0.13 })
+        .from(".hero-eyebrow", { opacity: 0, y: 16, duration: 0.8 }, 0.2)
+        .from(".hero-sub", { opacity: 0, y: 24, duration: 0.9 }, "-=0.6")
+        .from(".hero-cta > *", { opacity: 0, y: 20, duration: 0.7, stagger: 0.1 }, "-=0.5")
+        .from(".hero-meta", { opacity: 0, duration: 0.8 }, "-=0.3");
+
+      gsap.to(".hero-content", {
+        yPercent: -32, scale: 0.86, opacity: 0, filter: "blur(14px)", ease: "none",
+        scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true },
+      });
+      gsap.to(".hero-canvas-wrap", {
+        yPercent: 26, scale: 1.25, ease: "none",
+        scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true },
+      });
+      gsap.to(".hero-eyebrow", {
+        letterSpacing: "0.5em", ease: "none",
+        scrollTrigger: { trigger: ".hero", start: "top top", end: "40% top", scrub: true },
+      });
+
+      const words = gsap.utils.toArray<HTMLElement>(".lp-word");
+      ScrollTrigger.create({
+        trigger: ".manifesto",
+        start: "top 70%",
+        end: "bottom 75%",
+        scrub: true,
+        onUpdate: (self) => {
+          const lit = Math.floor(self.progress * words.length);
+          words.forEach((wd, i) => wd.classList.toggle("lit", i < lit));
+        },
+      });
+      gsap.fromTo(".manifesto p",
+        { scale: 0.9, rotateX: 12, transformOrigin: "50% 100%" },
+        { scale: 1, rotateX: 0, ease: "none",
+          scrollTrigger: { trigger: ".manifesto", start: "top 90%", end: "center 55%", scrub: true } });
+
+      const track = trackRef.current!;
+      const cards = gsap.utils.toArray<HTMLElement>(".gallery-card");
+      const getScroll = () => track.scrollWidth - window.innerWidth;
+      const depth = () => {
+        const mid = window.innerWidth / 2;
+        cards.forEach((c) => {
+          const r = c.getBoundingClientRect();
+          const d = (r.left + r.width / 2 - mid) / mid;
+          const ad = Math.min(Math.abs(d), 1.4);
+          gsap.set(c, {
+            rotateY: d * -26,
+            rotateZ: d * 2.5,
+            scale: 1 - ad * 0.2,
+            y: ad * 36,
+            opacity: 1 - ad * 0.6,
+            filter: `blur(${ad * 5}px) brightness(${1 - ad * 0.35})`,
+            transformOrigin: "center center",
+            z: -ad * 240,
+          });
+          const img = c.querySelector<HTMLElement>("img");
+          if (img) gsap.set(img, { x: d * -28, scale: 1.12 });
+        });
+      };
+      gsap.to(track, {
+        x: () => -getScroll(),
+        ease: "none",
+        scrollTrigger: {
+          trigger: ".gallery",
+          start: "top top",
+          end: () => "+=" + getScroll(),
+          pin: true,
+          scrub: 1,
+          invalidateOnRefresh: true,
+          onUpdate: depth,
+          onRefresh: depth,
+        },
+      });
+
+      gsap.fromTo(".band-img img",
+        { clipPath: "inset(100% 0% 0% 0%)", scale: 1.25 },
+        { clipPath: "inset(0% 0% 0% 0%)", scale: 1.05, duration: 1.5, ease: "expo.out",
+          scrollTrigger: { trigger: ".band", start: "top 78%" } });
+      gsap.fromTo(".band-img", { yPercent: -8 }, {
+        yPercent: 8, ease: "none",
+        scrollTrigger: { trigger: ".band", start: "top bottom", end: "bottom top", scrub: true },
+      });
+      gsap.utils.toArray<HTMLElement>(".split-head").forEach((h) => {
+        const chars = splitChars(h);
+        gsap.from(chars, {
+          yPercent: 130, rotateX: -90, opacity: 0, transformOrigin: "50% 100%",
+          stagger: 0.018, ease: "power3.out",
+          scrollTrigger: { trigger: h, start: "top 88%", end: "top 42%", scrub: 1 },
+        });
+      });
+
+      gsap.to(".spatial .blob:nth-child(2)", { x: "+=70", scale: 1.18, duration: 16, repeat: -1, yoyo: true, ease: "sine.inOut" });
+      gsap.to(".spatial .blob:nth-child(3)", { x: "-=90", scale: 1.12, duration: 20, repeat: -1, yoyo: true, ease: "sine.inOut" });
+      gsap.to(".spatial .blob:nth-child(4)", { x: "+=60", scale: 1.2, duration: 24, repeat: -1, yoyo: true, ease: "sine.inOut" });
+      gsap.to(".spatial .blob:nth-child(2)", { yPercent: 60, ease: "none", scrollTrigger: { start: 0, end: "max", scrub: 1 } });
+      gsap.to(".spatial .blob:nth-child(3)", { yPercent: -45, ease: "none", scrollTrigger: { start: 0, end: "max", scrub: 1 } });
+      gsap.to(".spatial .blob:nth-child(4)", { yPercent: 35, ease: "none", scrollTrigger: { start: 0, end: "max", scrub: 1.4 } });
+      gsap.to(".spatial-grid", { yPercent: 22, scale: 1.15, ease: "none", scrollTrigger: { start: 0, end: "max", scrub: true } });
+      gsap.to(".spatial", { filter: "hue-rotate(220deg)", ease: "none", scrollTrigger: { start: 0, end: "max", scrub: 1.5 } });
+
+      gsap.to(".pillar-num", {
+        xPercent: 120, ease: "none",
+        scrollTrigger: { trigger: ".pillars", start: "top bottom", end: "bottom top", scrub: 1 },
+      });
+
+      gsap.fromTo(".cta-img", { scale: 1.25, yPercent: -6 }, {
+        scale: 1, yPercent: 6, ease: "none",
+        scrollTrigger: { trigger: "#join", start: "top bottom", end: "bottom top", scrub: true },
+      });
+
+      gsap.utils.toArray<HTMLElement>("[data-fade]").forEach((el) => {
+        gsap.from(el, {
+          opacity: 0, y: 40, duration: 1, ease: "power3.out",
+          scrollTrigger: { trigger: el, start: "top 86%" },
+        });
+      });
+
+      gsap.from(".pillar", {
+        opacity: 0, yPercent: 60, rotateX: -45, transformOrigin: "50% 0%",
+        duration: 1, stagger: 0.14, ease: "power3.out",
+        scrollTrigger: { trigger: ".pillars", start: "top 72%" },
+      });
+      gsap.utils.toArray<HTMLElement>(".pillar").forEach((p) => {
+        const bar = p.querySelector<HTMLElement>(".pillar-sweep");
+        if (bar) gsap.fromTo(bar, { scaleX: 0 }, {
+          scaleX: 1, transformOrigin: "left", duration: 1.1, ease: "power3.inOut",
+          scrollTrigger: { trigger: p, start: "top 80%" },
+        });
+      });
+
+      if (progressRef.current) {
+        gsap.set(progressRef.current, { scaleX: 0, transformOrigin: "left center" });
+        gsap.to(progressRef.current, {
+          scaleX: 1, ease: "none",
+          scrollTrigger: { start: 0, end: "max", scrub: 0.3 },
+        });
+      }
+
+      const skewTargets = gsap.utils.toArray<HTMLElement>(".vel-skew");
+      const setters = skewTargets.map((el) => gsap.quickTo(el, "skewY", { duration: 0.45, ease: "power3" }));
+      const gridOpacity = gsap.quickTo(".spatial-grid", "opacity", { duration: 0.5, ease: "power2" });
+      const sectionIds = ["top", "mission", "gallery", "pillars", "join"];
+      let lastIdx = -1;
+      ScrollTrigger.create({
+        onUpdate: (self) => {
+          const v = gsap.utils.clamp(-7, 7, self.getVelocity() / -260);
+          setters.forEach((s) => s(v));
+          const av = Math.min(Math.abs(self.getVelocity()) / 3000, 1);
+          gridOpacity(0.5 + av * 0.5);
+          const mid = window.scrollY + window.innerHeight * 0.5;
+          let idx = 0;
+          sectionIds.forEach((id, i) => {
+            const el = document.getElementById(id);
+            if (el && el.getBoundingClientRect().top + window.scrollY <= mid) idx = i;
+          });
+          if (idx !== lastIdx) { lastIdx = idx; setActiveSection(idx); }
+        },
+      });
+    });
+    return () => ctx.revert();
   }, []);
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-    setIsSubmitting(true);
-    setSubmitStatus('idle');
-    setErrorMessage('');
-    try {
-      await signupNewsletter(email);
-      setSubmitStatus('success');
-      setEmail('');
-    } catch (err) {
-      setSubmitStatus('error');
-      setErrorMessage(err instanceof Error ? err.message : 'Something went wrong');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const formatDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-
-  const path = pathData[activePath];
-
-  const navLinks = [
-    { href: '/about', label: 'About Us' },
-    { href: '#why', label: 'Why Join' },
-    { href: '#experience', label: "What You'll Do" },
-    { href: '#sessions', label: 'Sessions' },
-    { href: '#tools', label: 'Tools' },
-    { href: '#faq', label: 'FAQ' },
-  ];
+  const scrollTo = (id: string) =>
+    gsap.to(window, { duration: 1.1, scrollTo: { y: `#${id}`, offsetY: 0 }, ease: "power3.inOut" });
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white overflow-x-hidden">
-      {/* Scroll progress bar */}
-      <div className="scroll-progress" aria-hidden="true">
-        <div className="scroll-progress-bar" style={{ width: `${scrollProgress}%` }} />
+    <div className="lp" style={{ position: "relative", background: "transparent" }}>
+      <SpatialBackground />
+      <CustomCursor />
+      <div className="lp-content" style={{ position: "relative", zIndex: 1 }}>
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 2, zIndex: 200, background: "transparent" }}>
+        <div ref={progressRef} style={{ height: "100%", width: "100%", background: "linear-gradient(90deg, var(--accent), var(--accent3))", boxShadow: "0 0 12px rgba(99,102,241,0.6)" }} />
       </div>
 
-      <Particles />
-
-      {/* ── Header ── */}
-      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'glass py-3' : 'py-5'}`}>
-        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-          {/* Brand */}
-          <a href="#home" className="flex items-center gap-3" aria-label="AI Centre home">
-            <img src="/files_10604804-2026-06-17T04-45-00-187Z-unnamed.png" className="w-9 h-9 object-contain rounded-lg" alt="AI Club" />
-            <div className="leading-tight">
-              <div className="text-white font-bold text-sm">AI Centre</div>
-              <div className="text-gray-500 text-xs">Vidyashilp Academy</div>
-            </div>
-          </a>
-
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-7" aria-label="Primary">
-            {navLinks.map((l) =>
-              l.href.startsWith('#') ? (
-                <a key={l.href} href={l.href} className="text-gray-400 hover:text-white text-sm transition-colors">{l.label}</a>
-              ) : (
-                <Link key={l.href} to={l.href} className="text-gray-400 hover:text-white text-sm transition-colors">{l.label}</Link>
-              )
-            )}
-            {user ? (
-              <Link to="/dashboard" className="btn-shine px-4 py-2 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-cyan-500/25 transition-all">
-                Dashboard
-              </Link>
-            ) : (
-              <>
-                <Link to="/login" className="text-gray-400 hover:text-white text-sm transition-colors">Sign In</Link>
-                <Link to="/signup" className="btn-shine px-4 py-2 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-cyan-500/25 transition-all">
-                  Join
-                </Link>
-              </>
-            )}
-          </nav>
-
-          {/* Mobile toggle */}
-          <button className="md:hidden text-gray-400 hover:text-white" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Toggle navigation">
-            {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+      <div className="lp-hide-mobile" style={{ position: "fixed", right: 28, top: "50%", transform: "translateY(-50%)", zIndex: 120, display: "flex", flexDirection: "column", gap: 18, alignItems: "flex-end" }}>
+        {[["top", "Home"], ["mission", "Mission"], ["gallery", "Programme"], ["pillars", "Principles"], ["join", "Join"]].map(([id, label], i) => (
+          <button key={id} onClick={() => scrollTo(id)}
+            style={{ display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", cursor: "pointer", color: activeSection === i ? "var(--text)" : "var(--text-muted)" }}>
+            <span className="lp-eyebrow" style={{ fontSize: 9.5, opacity: activeSection === i ? 1 : 0, transform: activeSection === i ? "translateX(0)" : "translateX(8px)", transition: "all 0.4s ease" }}>{label}</span>
+            <span style={{ width: activeSection === i ? 26 : 12, height: 2, borderRadius: 2, background: activeSection === i ? "var(--text)" : "rgba(255,255,255,0.25)", transition: "all 0.45s cubic-bezier(.22,1,.36,1)" }} />
           </button>
-        </div>
+        ))}
+      </div>
 
-        {mobileOpen && (
-          <div className="md:hidden glass mt-3 mx-4 rounded-xl p-4 flex flex-col gap-4">
-            {navLinks.map((l) =>
-              l.href.startsWith('#') ? (
-                <a key={l.href} href={l.href} className="text-gray-300 hover:text-white text-sm transition-colors" onClick={() => setMobileOpen(false)}>{l.label}</a>
-              ) : (
-                <Link key={l.href} to={l.href} className="text-gray-300 hover:text-white text-sm transition-colors" onClick={() => setMobileOpen(false)}>{l.label}</Link>
-              )
-            )}
-            <hr className="border-white/10" />
-            {user ? (
-              <Link to="/dashboard" className="text-center py-2.5 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-lg text-sm font-semibold">Dashboard</Link>
-            ) : (
-              <>
-                <Link to="/login" className="text-gray-300 hover:text-white text-sm transition-colors text-center">Sign In</Link>
-                <Link to="/signup" className="text-center py-2.5 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-lg text-sm font-semibold">Join the Club</Link>
-              </>
-            )}
-          </div>
-        )}
-      </header>
-
-      {/* ── Hero ── */}
-      <section id="home" className="relative min-h-screen flex items-center justify-center gradient-bg grid-pattern overflow-hidden">
-        <NeuralNetwork />
-        <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl morph-blob" aria-hidden="true" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl morph-blob" style={{ animationDelay: '-4s' }} aria-hidden="true" />
-
-        <div className="relative z-10 max-w-7xl mx-auto px-6 pt-24 pb-16 w-full">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Copy */}
-            <div>
-              <p className="reveal-scale inline-flex items-center gap-2 px-3 py-1.5 glass rounded-full text-xs text-cyan-400 mb-6">
-                <Zap className="w-3.5 h-3.5" />
-                Vidyashilp Academy student club
-              </p>
-              <h1 className="reveal text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6">
-                Join the AI Centre and turn your curiosity into{' '}
-                <span className="gradient-text">something real.</span>
-              </h1>
-              <p className="reveal text-gray-400 text-lg leading-relaxed mb-8">
-                If you've ever used ChatGPT, wanted to build something useful, or just wondered how AI is changing the world — this club gives you the space, support, and tools to start.
-              </p>
-              <div className="reveal flex flex-col sm:flex-row gap-3 mb-10">
-                {user ? (
-                  <Link to="/dashboard" className="btn-shine group px-6 py-3.5 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-xl font-semibold hover:shadow-xl hover:shadow-cyan-500/25 transition-all flex items-center justify-center gap-2">
-                    Go to Dashboard
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                ) : (
-                  <>
-                    <Link to="/signup" className="btn-shine group px-6 py-3.5 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-xl font-semibold hover:shadow-xl hover:shadow-cyan-500/25 transition-all flex items-center justify-center gap-2">
-                      See why students join
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                    </Link>
-                    <a href="#faq" className="px-6 py-3.5 glass rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center justify-center gap-2">
-                      Check how it works
-                    </a>
-                  </>
-                )}
-              </div>
-
-              {/* Stats */}
-              <dl className="reveal grid grid-cols-3 gap-4" aria-label="Key club highlights">
-                {[
-                  { label: 'Beginner friendly', value: 100, suffix: '%' },
-                  { label: 'Hands-on tracks', value: 4, suffix: '' },
-                  { label: 'Members this year', value: 15, suffix: '+' },
-                ].map((s) => (
-                  <div key={s.label} className="glass rounded-xl p-4 text-center">
-                    <dd className="text-2xl font-bold gradient-text mb-1">
-                      <Counter value={s.value} suffix={s.suffix} />
-                    </dd>
-                    <dt className="text-xs text-gray-500">{s.label}</dt>
-                  </div>
-                ))}
-              </dl>
+      <nav style={{
+        position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
+        transition: "all 0.4s ease", padding: "0 clamp(20px,4vw,56px)",
+        background: scrolled ? "rgba(8,8,10,0.72)" : "transparent",
+        backdropFilter: scrolled ? "blur(16px)" : "none",
+        borderBottom: scrolled ? "1px solid var(--line)" : "1px solid transparent",
+      }}>
+        <div style={{ maxWidth: 1320, margin: "0 auto", height: 72, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 24, height: 24, borderRadius: 6, border: "1px solid rgba(255,255,255,0.25)", display: "grid", placeItems: "center" }}>
+              <div style={{ width: 8, height: 8, background: "#f5f5f7", borderRadius: 2 }} />
             </div>
-
-            {/* Panel */}
-            <aside aria-label="Join preview">
-              <div className="reveal-right glass rounded-2xl p-6 mb-4 card-hover">
-                <p className="text-xs text-cyan-400 font-mono mb-3">WHAT YOU GET</p>
-                <ul className="space-y-3">
-                  {[
-                    'Real AI builds you can present with confidence',
-                    'A friendly space for beginners and experienced students',
-                    'Workshops, demos, competitions, and creative challenges',
-                    'Support from teachers and older members when you get stuck',
-                  ].map((item) => (
-                    <li key={item} className="flex items-start gap-3 text-sm text-gray-300">
-                      <ChevronRight className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="reveal-right glass rounded-2xl p-6 card-hover">
-                <p className="text-sm font-semibold text-white mb-2">Why it feels different</p>
-                <p className="text-gray-400 text-sm leading-relaxed">
-                  Instead of just talking about AI, you'll actually use it, test it, build with it, and learn how to make it useful, creative, and responsible.
-                </p>
-              </div>
-            </aside>
+            <span className="lp-display" style={{ fontSize: 17, fontWeight: 600, letterSpacing: "-0.02em" }}>AI Centre</span>
           </div>
-
-          <div className="reveal flex flex-col items-center gap-2 text-gray-600 mt-12">
-            <span className="text-xs">Scroll to explore</span>
-            <ChevronDown className="w-4 h-4 animate-bounce" />
-          </div>
-        </div>
-      </section>
-
-      {/* ── Why Join ── */}
-      <section id="why" className="py-24 relative">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <p className="reveal text-cyan-400 font-mono text-xs mb-3">WHY JOIN</p>
-            <h2 className="reveal text-3xl md:text-4xl font-bold mb-5">
-              Because this is more than a club.<br />
-              <span className="gradient-text">It's a place to get better at making things.</span>
-            </h2>
-            <p className="reveal text-gray-400 max-w-2xl mx-auto">
-              Students join when they want to learn skills that feel useful, creative, and future-ready — without the pressure of already being an expert.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {[
-              { icon: Hammer, title: 'Make real builds', body: 'Build chatbots, visuals, smart tools, and mini apps that are worth showing to friends, teachers, and future colleges.' },
-              { icon: Sparkles, title: 'Start from zero', body: 'No special background required. If you are curious, you already belong here.' },
-              { icon: Users, title: 'Meet your people', body: 'Work with students who like tech, design, debate, coding, writing, or just trying something new.' },
-            ].map(({ icon: Icon, title, body }) => (
-              <article key={title} className="reveal-scale glass rounded-2xl p-8 card-hover group">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-                  <Icon className="w-6 h-6 text-cyan-400" />
-                </div>
-                <h3 className="text-lg font-semibold mb-3 text-white">{title}</h3>
-                <p className="text-gray-400 text-sm leading-relaxed">{body}</p>
-              </article>
+          <div className="lp-hide-mobile" style={{ display: "flex", gap: 36, alignItems: "center" }}>
+            {[["Mission", "mission"], ["Programme", "gallery"], ["Principles", "pillars"]].map(([label, id]) => (
+              <button key={id} onClick={() => scrollTo(id)} className="lp-link" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "var(--text-muted)" }}>{label}</button>
             ))}
           </div>
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <Link to="/login" className="lp-link lp-hide-mobile" style={{ fontSize: 14, color: "var(--text-muted)" }}>Log in</Link>
+            <Link to="/login" className="lp-btn lp-btn-solid" style={{ padding: "9px 18px", fontSize: 13 }}>Join the club <ArrowRight size={14} /></Link>
+          </div>
+        </div>
+      </nav>
+
+      <section id="top" className="hero" style={{ position: "relative", height: "100vh", minHeight: 680, overflow: "hidden", display: "flex", alignItems: "center" }}>
+        <div className="hero-canvas-wrap" style={{ position: "absolute", inset: 0, opacity: 0.9 }}>
+          <Hyperspeed effectOptions={HYPER_OPTIONS} />
+        </div>
+        <div className="lp-grid-bg" style={{ position: "absolute", inset: 0, opacity: 0.6 }} />
+        <div className="lp-vignette" style={{ position: "absolute", inset: 0 }} />
+
+        <div className="hero-content" style={{ position: "relative", zIndex: 2, width: "100%", maxWidth: 1320, margin: "0 auto", padding: "0 clamp(20px,4vw,56px)" }}>
+          <div className="hero-eyebrow lp-eyebrow" style={{ marginBottom: 28 }}>Student-led · Artificial Intelligence &amp; Machine Learning</div>
+          <h1 className="lp-display" style={{ fontSize: "clamp(2.7rem, 8.5vw, 8rem)", margin: 0, perspective: 800 }}>
+            <div className="hero-line lp-reveal"><span>Learn. Build.</span></div>
+            <div className="hero-line lp-reveal"><span style={{ color: "var(--text-muted)" }}>Shape the future</span></div>
+            <div className="hero-line lp-reveal"><span>of AI.</span></div>
+          </h1>
+          <p className="hero-sub" style={{ maxWidth: 540, marginTop: 32, fontSize: "clamp(15px,1.4vw,18px)", lineHeight: 1.6, color: "var(--text-muted)" }}>
+            A community where students develop real technical skill, critical thinking, and the judgement to build artificial intelligence responsibly.
+          </p>
+          <div className="hero-cta" style={{ display: "flex", gap: 14, marginTop: 40, flexWrap: "wrap" }}>
+            <Link to="/login" className="lp-btn lp-btn-solid">Join the club <ArrowUpRight size={16} /></Link>
+            <button onClick={() => scrollTo("mission")} className="lp-btn lp-btn-ghost">Explore the programme</button>
+          </div>
+        </div>
+
+        <div className="hero-meta lp-hide-mobile" style={{ position: "absolute", bottom: 32, left: 0, right: 0, zIndex: 2 }}>
+          <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 clamp(20px,4vw,56px)", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+            <span className="lp-eyebrow">Scroll to begin</span>
+            <span className="lp-eyebrow" style={{ maxWidth: 280, textAlign: "right", lineHeight: 1.6 }}>Hands-on learning · Competitions · Research · Global outreach</span>
+          </div>
         </div>
       </section>
 
-      {/* ── Experience / Path switcher ── */}
-      <section id="experience" className="py-24 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/5 via-transparent to-cyan-500/5" aria-hidden="true" />
-        <div className="relative z-10 max-w-6xl mx-auto px-6">
-          <div className="text-center mb-12">
-            <p className="reveal text-cyan-400 font-mono text-xs mb-3">WHAT YOU'LL DO</p>
-            <h2 className="reveal text-3xl md:text-4xl font-bold mb-5">
-              A club that mixes learning,<br />
-              <span className="gradient-text">building, and showing your work.</span>
-            </h2>
-            <p className="reveal text-gray-400 max-w-2xl mx-auto">
-              Choose a path below and see how the club fits different interests — whether you're a beginner, a builder, or a creative thinker.
-            </p>
-          </div>
-
-          {/* Path tabs */}
-          <div className="flex flex-wrap justify-center gap-2 mb-10" role="tablist" aria-label="Member paths">
-            {(Object.keys(pathData) as Array<keyof typeof pathData>).map((key) => (
-              <button
-                key={key}
-                role="tab"
-                aria-selected={activePath === key}
-                onClick={() => setActivePath(key)}
-                className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                  activePath === key
-                    ? 'bg-gradient-to-r from-cyan-500 to-emerald-500 text-white shadow-lg shadow-cyan-500/25'
-                    : 'glass text-gray-400 hover:text-white'
-                }`}
-              >
-                {key === 'beginner' ? "I'm new to AI" : key === 'builder' ? 'I like coding' : key === 'creator' ? 'I like design' : 'I want to lead'}
-              </button>
+      <section id="mission" className="manifesto" style={{ padding: "clamp(120px,18vh,220px) clamp(20px,4vw,56px)" }}>
+        <div style={{ maxWidth: 960, margin: "0 auto", textAlign: "center" }}>
+          <div className="lp-eyebrow" style={{ marginBottom: 40 }} data-fade>[ Our mission ]</div>
+          <p className="lp-display" style={{ fontSize: "clamp(1.6rem, 4vw, 3.6rem)", fontWeight: 400, lineHeight: 1.2, letterSpacing: "-0.02em" }}>
+            {MANIFESTO.split(" ").map((w, i) => (
+              <span key={i}>
+                <span className="lp-word">{w}</span>{" "}
+              </span>
             ))}
-          </div>
-
-          <div className="grid lg:grid-cols-2 gap-10 items-start">
-            <div>
-              <p className="text-cyan-400 font-mono text-xs mb-2">{path.label.toUpperCase()}</p>
-              <h3 className="text-2xl font-bold text-white mb-4">{path.title}</h3>
-              <p className="text-gray-400 leading-relaxed">{path.text}</p>
-            </div>
-            <div className="grid gap-4">
-              {path.items.map(({ icon: Icon, heading, body }) => (
-                <div key={heading} className="glass rounded-xl p-5 flex gap-4 items-start card-hover">
-                  <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center shrink-0">
-                    <Icon className="w-5 h-5 text-cyan-400" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-white mb-1">{heading}</p>
-                    <p className="text-gray-400 text-sm">{body}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          </p>
         </div>
       </section>
 
-      {/* ── Sessions ── */}
-      <section id="sessions" className="py-24 relative">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <p className="reveal text-cyan-400 font-mono text-xs mb-3">WEEKLY RHYTHM</p>
-            <h2 className="reveal text-3xl md:text-4xl font-bold mb-5">
-              The kind of sessions that make<br />
-              <span className="gradient-text">you want to come back.</span>
+      <section className="band" style={{ position: "relative", height: "70vh", minHeight: 420, overflow: "hidden", borderTop: "1px solid var(--line)" }}>
+        <div className="band-img" style={{ position: "absolute", inset: "-12% 0", willChange: "transform" }}>
+          <img src="/images/band.jpg" alt="Members collaborating at AI Centre"
+            style={{ width: "100%", height: "100%", objectFit: "cover", filter: "grayscale(0.35) brightness(0.5) contrast(1.05)" }} />
+        </div>
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(8,8,10,0.85) 0%, rgba(8,8,10,0.4) 50%, rgba(8,8,10,0.7) 100%)" }} />
+        <div style={{ position: "relative", height: "100%", maxWidth: 1320, margin: "0 auto", padding: "0 clamp(20px,4vw,56px)", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <div className="lp-eyebrow" style={{ marginBottom: 28 }} data-fade>[ Inside the Centre ]</div>
+          <div style={{ overflow: "hidden" }}>
+            <h2 className="lp-display split-head" style={{ fontSize: "clamp(1.8rem,4vw,3.4rem)", lineHeight: 1.1, maxWidth: 760 }}>
+              Real students, real projects — learning by building together.
             </h2>
-            <p className="reveal text-gray-400 max-w-2xl mx-auto">
-              Every meeting should feel productive, social, and a little exciting — not like another worksheet.
-            </p>
           </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {sessionData.map(({ icon: Icon, title, body }) => (
-              <div key={title} className="reveal-scale glass rounded-2xl p-8 card-hover group text-center">
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 flex items-center justify-center mx-auto mb-5 group-hover:scale-110 transition-transform">
-                  <Icon className="w-7 h-7 text-cyan-400" />
-                </div>
-                <h3 className="text-lg font-semibold text-white mb-3">{title}</h3>
-                <p className="text-gray-400 text-sm leading-relaxed">{body}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Upcoming events pulled from DB */}
-          {events.length > 0 && (
-            <div className="mt-16">
-              <div className="text-center mb-10">
-                <p className="reveal text-cyan-400 font-mono text-xs mb-3">UPCOMING EVENTS</p>
-                <h3 className="reveal text-2xl font-bold text-white">What's on next</h3>
-              </div>
-              <div className="grid md:grid-cols-3 gap-6">
-                {events.map((ev) => (
-                  <EventCard key={ev.id} title={ev.title} date={formatDate(ev.event_date)} time={ev.event_time || 'TBD'} type={ev.event_type} description={ev.description || ''} />
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </section>
 
-      {/* ── Tools ── */}
-      <section id="tools" className="py-24 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-transparent to-emerald-500/5" aria-hidden="true" />
-        <div className="relative z-10 max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <p className="reveal text-cyan-400 font-mono text-xs mb-3">TOOLS</p>
-            <h2 className="reveal text-3xl md:text-4xl font-bold mb-5">
-              Free tools, real possibilities,<br />
-              <span className="gradient-text">and no expensive setup.</span>
+      <section id="gallery" className="gallery" style={{ height: "100vh", overflow: "hidden", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}>
+        <div ref={trackRef} style={{ display: "flex", height: "100%", alignItems: "center", width: "max-content", padding: "0 clamp(20px,4vw,56px)", gap: 28, perspective: 1400, transformStyle: "preserve-3d" }}>
+          <div style={{ width: "min(82vw, 460px)", flexShrink: 0 }}>
+            <div className="lp-eyebrow" style={{ marginBottom: 24 }}>[ The programme ]</div>
+            <h2 className="lp-display" style={{ fontSize: "clamp(2rem,4.5vw,3.4rem)", lineHeight: 1.05 }}>
+              Seven ways<br />members grow.
             </h2>
-            <p className="reveal text-gray-400 max-w-2xl mx-auto">
-              We focus on software students can actually access, so the club stays practical and open to everyone.
+            <p style={{ color: "var(--text-muted)", marginTop: 24, fontSize: 16, lineHeight: 1.6, maxWidth: 380 }}>
+              From a first line of code to research and global competition — scroll through how the Centre works.
             </p>
+            <div style={{ marginTop: 28, display: "flex", alignItems: "center", gap: 10, color: "var(--text-muted)" }}>
+              <ArrowRight size={16} /><span className="lp-eyebrow">Scroll horizontally</span>
+            </div>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 grid sm:grid-cols-2 gap-4">
-              {toolsData.map(({ name, desc }) => (
-                <div key={name} className="reveal glass rounded-xl p-5 card-hover">
-                  <p className="font-semibold text-white mb-1">{name}</p>
-                  <p className="text-gray-400 text-sm">{desc}</p>
+          {OFFERINGS.map((o) => (
+            <article key={o.n} className="lp-panel gallery-card" onMouseMove={spotlight}
+              style={{ width: "min(80vw, 380px)", flexShrink: 0, height: 480, display: "flex", flexDirection: "column", position: "relative", willChange: "transform" }}>
+              <div style={{ position: "relative", height: 240, overflow: "hidden" }}>
+                <img src={o.img} alt={o.t} loading="lazy"
+                  style={{ width: "100%", height: "100%", objectFit: "cover", filter: "grayscale(0.2) contrast(1.02)" }} />
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(8,8,10,0.1) 0%, rgba(8,8,10,0.55) 70%, var(--surface) 100%)" }} />
+                <span className="lp-display" style={{ position: "absolute", top: 18, left: 22, fontSize: 13, color: "rgba(255,255,255,0.9)", mixBlendMode: "difference" }}>{o.n}</span>
+                <div style={{ position: "absolute", top: 18, right: 22, width: 28, height: 28, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.3)", display: "grid", placeItems: "center", background: "rgba(8,8,10,0.3)", backdropFilter: "blur(4px)" }}>
+                  <Plus size={13} color="#fff" />
                 </div>
-              ))}
-            </div>
-            <aside className="reveal-right glass rounded-2xl p-6 self-start">
-              <h3 className="font-semibold text-white mb-4">Good to know</h3>
-              <ul className="space-y-3">
-                {[
-                  'You do not need to be an expert to start',
-                  'Many activities work on school laptops or BYOD',
-                  'We keep the workflow simple and collaborative',
-                  'Sessions are shaped around curiosity, not pressure',
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-3 text-sm text-gray-400">
-                    <ChevronRight className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </aside>
-          </div>
+              </div>
+              <div style={{ padding: "8px 30px 32px", display: "flex", flexDirection: "column", flex: 1, justifyContent: "flex-start" }}>
+                <h3 className="lp-display" style={{ fontSize: 26, marginBottom: 12, letterSpacing: "-0.02em" }}>{o.t}</h3>
+                <p style={{ color: "var(--text-muted)", fontSize: 14.5, lineHeight: 1.6 }}>{o.d}</p>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
 
-      {/* ── Member stories ── */}
-      {testimonials.length > 0 && (
-        <section className="py-24 relative">
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="text-center mb-16">
-              <p className="reveal text-cyan-400 font-mono text-xs mb-3">MEMBER STORIES</p>
-              <h2 className="reveal text-3xl md:text-4xl font-bold mb-5">
-                Hear from our<br />
-                <span className="gradient-text">community</span>
+      <section id="explore" className="explore" style={{ position: "relative", padding: "clamp(90px,12vh,140px) 0 clamp(40px,6vh,80px)", borderBottom: "1px solid var(--line)" }}>
+        <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 clamp(20px,4vw,56px)", textAlign: "center" }}>
+          <div className="lp-eyebrow" style={{ marginBottom: 24 }} data-fade>[ What you&apos;ll learn ]</div>
+          <h2 className="lp-display" data-fade style={{ fontSize: "clamp(2rem,5vw,4rem)", lineHeight: 1.02, marginBottom: 16 }}>
+            Spin through the skills.
+          </h2>
+          <p data-fade style={{ color: "var(--text-muted)", fontSize: 16, lineHeight: 1.6, maxWidth: 480, margin: "0 auto" }}>
+            Drag the sphere to explore the skills you&apos;ll build at the Centre — from your first line of Python to shipping real AI projects.
+          </p>
+        </div>
+        <div className="explore-sphere" style={{ position: "relative", height: "clamp(460px, 70vh, 720px)", marginTop: 8 }}>
+          <InfiniteMenu items={MENU_ITEMS} />
+        </div>
+      </section>
+
+      <section id="pillars" className="pillars" style={{ padding: "clamp(120px,16vh,200px) clamp(20px,4vw,56px)" }}>
+        <div style={{ maxWidth: 1320, margin: "0 auto", perspective: 1200 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 24, marginBottom: 72 }}>
+            <div style={{ overflow: "hidden", maxWidth: 620 }}>
+              <h2 className="lp-display split-head" style={{ fontSize: "clamp(2rem,5vw,4rem)", lineHeight: 1.02 }}>
+                What the Centre builds in people.
               </h2>
             </div>
-            <div className="grid md:grid-cols-3 gap-6">
-              {testimonials.map((t) => (
-                <div key={t.id} className="reveal glass rounded-2xl p-8 card-hover">
-                  <div className="flex gap-1 mb-4">
-                    {[...Array(5)].map((_, i) => <Sparkles key={i} className="w-3.5 h-3.5 text-yellow-500" />)}
-                  </div>
-                  <p className="text-gray-300 mb-6 leading-relaxed text-sm">"{t.content}"</p>
-                  <div className="flex items-center gap-3">
-                    <img src={t.avatar_url || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?w=100&h=100&fit=crop'} alt={t.name} className="w-10 h-10 rounded-full object-cover" />
-                    <div>
-                      <p className="font-semibold text-white text-sm">{t.name}</p>
-                      <p className="text-gray-500 text-xs">{t.role}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── FAQ ── */}
-      <section id="faq" className="py-24 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/5 via-transparent to-cyan-500/5" aria-hidden="true" />
-        <div className="relative z-10 max-w-3xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <p className="reveal text-cyan-400 font-mono text-xs mb-3">FAQ</p>
-            <h2 className="reveal text-3xl md:text-4xl font-bold mb-5">
-              Questions students usually ask<br />
-              <span className="gradient-text">before they join.</span>
-            </h2>
-            <p className="reveal text-gray-400">
-              Tap a question to open it. This section is built to remove the usual doubts that stop people from signing up.
+            <p style={{ color: "var(--text-muted)", maxWidth: 320, fontSize: 16, lineHeight: 1.6 }}>
+              Beyond the tools, membership develops the qualities that outlast any single technology.
             </p>
           </div>
-          <div className="space-y-3">
-            {faqData.map((item) => (
-              <FaqItem key={item.q} question={item.q} answer={item.a} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Join / CTA ── */}
-      <section id="join" className="py-24 relative overflow-hidden">
-        <div className="absolute inset-0" aria-hidden="true">
-          <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-emerald-500/10" />
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[700px] bg-cyan-500/10 rounded-full blur-3xl" />
-        </div>
-
-        <div className="relative z-10 max-w-4xl mx-auto px-6">
-          <div className="reveal-scale glass rounded-3xl p-8 md:p-16 relative overflow-hidden">
-            <div className="absolute inset-0 rounded-3xl rotating-border opacity-20" style={{ zIndex: -1 }} />
-
-            <div className="grid md:grid-cols-2 gap-12 items-center">
-              <div>
-                <p className="text-cyan-400 font-mono text-xs mb-3">READY TO JOIN?</p>
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                  If you want a club that feels creative, useful, and future-facing —{' '}
-                  <span className="gradient-text">this is your sign.</span>
-                </h2>
-                <p className="text-gray-400 text-sm leading-relaxed">
-                  Come for the AI. Stay for the people, the builds, and the chance to create something impressive before everyone else catches up.
-                </p>
-              </div>
-
-              <div>
-                {user ? (
-                  <Link to="/dashboard" className="btn-shine group w-full px-6 py-4 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-xl font-semibold text-lg hover:shadow-xl hover:shadow-cyan-500/25 transition-all flex items-center justify-center gap-2">
-                    Go to Dashboard
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                ) : (
-                  <form onSubmit={handleSignup} className="space-y-3">
-                    <Link to="/signup" className="btn-shine group w-full px-6 py-4 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-xl font-semibold hover:shadow-xl hover:shadow-cyan-500/25 transition-all flex items-center justify-center gap-2 mb-4">
-                      Create your account
-                      <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                    </Link>
-                    <p className="text-center text-gray-500 text-xs">or stay in the loop with email</p>
-                    <div className="flex gap-2">
-                      <input
-                        type="email"
-                        placeholder="Your email address"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
-                      />
-                      <button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className="px-4 py-3 bg-white/10 hover:bg-white/15 border border-white/10 rounded-xl text-sm font-medium transition-all disabled:opacity-50"
-                      >
-                        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Notify me'}
-                      </button>
-                    </div>
-                    {submitStatus === 'success' && (
-                      <p className="flex items-center gap-2 text-emerald-400 text-xs">
-                        <CheckCircle className="w-4 h-4" /> You're on the list!
-                      </p>
-                    )}
-                    {submitStatus === 'error' && (
-                      <p className="flex items-center gap-2 text-red-400 text-xs">
-                        <AlertCircle className="w-4 h-4" /> {errorMessage}
-                      </p>
-                    )}
-                  </form>
-                )}
-              </div>
+          <div className="lp-rule" />
+          {PILLARS.map((p, i) => (
+            <div key={p.k} className="pillar" style={{ position: "relative", display: "grid", gridTemplateColumns: "60px 1fr 1.4fr", gap: "clamp(16px,4vw,80px)", alignItems: "center", padding: "clamp(28px,4vw,48px) 0", borderBottom: "1px solid var(--line)" }}>
+              <span className="pillar-sweep" style={{ position: "absolute", left: 0, bottom: -1, height: 1, width: "100%", background: "linear-gradient(90deg, var(--accent), transparent)" }} />
+              <span className="lp-display pillar-num" style={{ fontSize: 14, color: "var(--text-muted)", display: "inline-block" }}>{String(i + 1).padStart(2, "0")}</span>
+              <h3 className="lp-display" style={{ fontSize: "clamp(1.4rem,2.6vw,2.2rem)", letterSpacing: "-0.02em" }}>{p.k}</h3>
+              <p style={{ color: "var(--text-muted)", fontSize: 16, lineHeight: 1.6 }}>{p.d}</p>
             </div>
+          ))}
+        </div>
+        <div style={{ position: "relative", height: "clamp(380px, 52vh, 520px)", marginTop: "clamp(56px,8vh,96px)", borderTop: "1px solid var(--line)" }}>
+          <FlowingMenu
+            items={PILLAR_FLOW}
+            speed={20}
+            textColor="#ededef"
+            bgColor="transparent"
+            marqueeBgColor="#06b6d4"
+            marqueeTextColor="#08080a"
+            borderColor="rgba(255,255,255,0.1)"
+          />
+        </div>
+      </section>
+
+      <section style={{ padding: "clamp(40px,8vh,90px) 0", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", overflow: "hidden" }}>
+        <div className="lp-marquee vel-skew">
+          {[...Array(2)].map((_, dup) => (
+            <div key={dup} style={{ display: "flex", alignItems: "center" }}>
+              {["Learn", "Build", "Collaborate", "Compete", "Research", "Question", "Lead", "Innovate"].map((word, i) => (
+                <span key={i} style={{ display: "inline-flex", alignItems: "center" }}>
+                  <span className="lp-display" style={{ fontSize: "clamp(2rem,5vw,4.5rem)", padding: "0 36px", color: i % 2 ? "var(--text-muted)" : "var(--text)" }}>{word}</span>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent)" }} />
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="flow" style={{ position: "relative", borderTop: "1px solid var(--line)" }}>
+        <div style={{ maxWidth: 1320, margin: "0 auto", padding: "clamp(80px,12vh,130px) clamp(20px,4vw,56px) clamp(40px,6vh,60px)", textAlign: "center" }}>
+          <div className="lp-eyebrow" style={{ marginBottom: 24 }} data-fade>[ Find your way in ]</div>
+          <h2 className="lp-display" data-fade style={{ fontSize: "clamp(2rem,5vw,4rem)", lineHeight: 1.02 }}>
+            Where to next.
+          </h2>
+        </div>
+        <div style={{ position: "relative", height: "clamp(420px, 60vh, 560px)" }}>
+          <FlowingMenu
+            items={FLOW_ITEMS}
+            speed={18}
+            textColor="#ededef"
+            bgColor="transparent"
+            marqueeBgColor="#6366f1"
+            marqueeTextColor="#08080a"
+            borderColor="rgba(255,255,255,0.1)"
+          />
+        </div>
+      </section>
+
+      <section id="join" style={{ padding: "clamp(120px,18vh,220px) clamp(20px,4vw,56px)", position: "relative", overflow: "hidden" }}>
+        <img src="/images/cta.jpg" alt="" aria-hidden className="cta-img"
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "grayscale(0.4) brightness(0.32)" }} />
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 70% 80% at 50% 50%, rgba(8,8,10,0.55), var(--bg) 95%)" }} />
+        <div className="lp-grid-bg" style={{ position: "absolute", inset: 0, opacity: 0.25 }} />
+        <div style={{ maxWidth: 900, margin: "0 auto", textAlign: "center", position: "relative" }} data-fade>
+          <div className="lp-eyebrow" style={{ marginBottom: 32 }}>[ Membership is open ]</div>
+          <div style={{ overflow: "hidden", marginBottom: 36 }}>
+            <h2 className="lp-display split-head" style={{ fontSize: "clamp(2.4rem,7vw,6rem)", lineHeight: 1 }}>
+              Build the future with us.
+            </h2>
+          </div>
+          <p style={{ color: "var(--text-muted)", fontSize: 18, lineHeight: 1.6, maxWidth: 520, margin: "0 auto 44px" }}>
+            Sign in to the member portal to access learning resources, track your progress, and join the next project.
+          </p>
+          <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
+            <Link to="/login" className="lp-btn lp-btn-solid" style={{ padding: "15px 30px", fontSize: 15 }}>Enter the portal <ArrowUpRight size={17} /></Link>
+            <button onClick={() => scrollTo("mission")} className="lp-btn lp-btn-ghost" style={{ padding: "15px 30px", fontSize: 15 }}>Read the mission</button>
           </div>
         </div>
       </section>
 
-      {/* ── Footer ── */}
-      <footer className="py-10 border-t border-white/10">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="grid md:grid-cols-4 gap-8 mb-10">
-            <div>
-              <div className="flex items-center gap-3 mb-3">
-                <img src="/files_10604804-2026-06-17T04-45-00-187Z-unnamed.png" className="w-8 h-8 object-contain rounded-lg" alt="AI Club" />
-                <div>
-                  <p className="text-white font-bold text-sm">AI Centre</p>
-                  <p className="text-gray-600 text-xs">Vidyashilp Academy</p>
+      <footer style={{ borderTop: "1px solid var(--line)", padding: "56px clamp(20px,4vw,56px) 40px" }}>
+        <div style={{ maxWidth: 1320, margin: "0 auto" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 40, marginBottom: 56 }}>
+            <div style={{ maxWidth: 360 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+                <div style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid rgba(255,255,255,0.25)", display: "grid", placeItems: "center" }}>
+                  <div style={{ width: 7, height: 7, background: "#f5f5f7", borderRadius: 2 }} />
                 </div>
+                <span className="lp-display" style={{ fontSize: 16, fontWeight: 600 }}>AI Centre</span>
               </div>
-              <p className="text-gray-600 text-xs leading-relaxed">Build, create, and lead.</p>
+              <p style={{ color: "var(--text-muted)", fontSize: 14, lineHeight: 1.6 }}>
+                A student-led artificial intelligence and machine learning club.
+              </p>
             </div>
-            <div>
-              <p className="font-semibold text-white text-sm mb-3">Navigation</p>
-              <ul className="space-y-2">
-                <li><Link to="/about" className="text-gray-500 hover:text-cyan-400 transition-colors text-xs">About Us</Link></li>
-                {navLinks.filter(l => l.href.startsWith('#')).map((l) => (
-                  <li key={l.href}><a href={l.href} className="text-gray-500 hover:text-cyan-400 transition-colors text-xs">{l.label}</a></li>
+            <div style={{ display: "flex", gap: "clamp(40px,8vw,100px)", flexWrap: "wrap" }}>
+              <div>
+                <div className="lp-eyebrow" style={{ marginBottom: 16 }}>Explore</div>
+                {[["Mission", "mission"], ["Programme", "gallery"], ["Principles", "pillars"]].map(([l, id]) => (
+                  <button key={id} onClick={() => scrollTo(id)} className="lp-link" style={{ display: "block", background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 14, padding: "6px 0", textAlign: "left" }}>{l}</button>
                 ))}
-              </ul>
-            </div>
-            <div>
-              <p className="font-semibold text-white text-sm mb-3">Account</p>
-              <ul className="space-y-2">
-                {user ? (
-                  <li><Link to="/dashboard" className="text-gray-500 hover:text-cyan-400 transition-colors text-xs">Dashboard</Link></li>
-                ) : (
-                  <>
-                    <li><Link to="/signup" className="text-gray-500 hover:text-cyan-400 transition-colors text-xs">Join the club</Link></li>
-                    <li><Link to="/login" className="text-gray-500 hover:text-cyan-400 transition-colors text-xs">Sign in</Link></li>
-                  </>
-                )}
-              </ul>
-            </div>
-            <div>
-              <p className="font-semibold text-white text-sm mb-3">Connect</p>
-              <div className="flex gap-3">
-                {[{ Icon: Github }, { Icon: Twitter }, { Icon: Linkedin }].map(({ Icon }, i) => (
-                  <a key={i} href="#" className="w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center hover:bg-cyan-500/20 transition-colors">
-                    <Icon className="w-4 h-4 text-gray-400" />
-                  </a>
-                ))}
+              </div>
+              <div>
+                <div className="lp-eyebrow" style={{ marginBottom: 16 }}>Portal</div>
+                <Link to="/login" className="lp-link" style={{ display: "block", color: "var(--text-muted)", fontSize: 14, padding: "6px 0" }}>Member log in</Link>
+                <Link to="/login" className="lp-link" style={{ display: "block", color: "var(--text-muted)", fontSize: 14, padding: "6px 0" }}>Join the club</Link>
               </div>
             </div>
           </div>
-
-          <div className="pt-6 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-3">
-            <p className="text-gray-600 text-xs">AI Centre &bull; Vidyashilp Academy &bull; Build, create, and lead</p>
-            <p className="text-gray-600 text-xs">&copy; {new Date().getFullYear()} AI Centre. All rights reserved.</p>
+          <div className="lp-rule" />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16, paddingTop: 28 }}>
+            <span className="lp-eyebrow">© {new Date().getFullYear()} AI Centre</span>
+            <span className="lp-eyebrow">Learn · Build · Collaborate · Shape the future</span>
           </div>
         </div>
       </footer>
+      </div>
     </div>
   );
 }
