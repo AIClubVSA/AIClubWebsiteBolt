@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Mail, Loader2, AlertCircle, ArrowLeft, ShieldCheck } from 'lucide-react';
@@ -28,8 +28,16 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const { sendSignInOtp, verifySignInOtp, signInWithGoogle } = useAuth();
+  const { sendSignInOtp, verifySignInOtp, signInWithGoogle, authError, clearAuthError } = useAuth();
   const navigate = useNavigate();
+
+  // Show OAuth errors from context
+  useEffect(() => {
+    if (authError) {
+      setError(authError);
+      clearAuthError();
+    }
+  }, [authError, clearAuthError]);
 
   function startCooldown() {
     setResendCooldown(60);

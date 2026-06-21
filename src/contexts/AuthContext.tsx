@@ -17,6 +17,8 @@ interface AuthContextType {
   profile: Profile | null;
   session: Session | null;
   loading: boolean;
+  authError: string | null;
+  clearAuthError: () => void;
   sendSignInOtp: (email: string) => Promise<{ error: string | null }>;
   verifySignInOtp: (email: string, token: string) => Promise<{ error: string | null }>;
   sendSignUpOtp: (email: string) => Promise<{ error: string | null }>;
@@ -32,6 +34,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  const clearAuthError = useCallback(() => setAuthError(null), []);
 
   // Creates a profile row for OAuth users on their first sign-in
   const ensureProfile = useCallback(async (user: User) => {
@@ -81,10 +86,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true;
 
     async function handleAuthCallback() {
-      // Check for OAuth callback - either PKCE (code in search) or implicit (tokens in hash)
       const urlParams = new URLSearchParams(window.location.search);
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
 
+      // Check for OAuth error in URL
+      const errorParam = urlParams.get('error');
+      const errorCode = urlParams.get('error_code');
+      const errorDescription = urlParams.get('error_description');
+
+      if (errorParam) {
+        console.error('OAuth error:', errorParam, errorCode, errorDescription);
+        setAuthError(decodeURIComponent(errorDescription || errorParam || 'OAuth authentication failed'));
+        // Clean URL
+        window.history.replaceState(null, '', window.location.pathname);
+        if (mounted) setLoading(false);
+        return;
+      }
+
+      // Check for OAuth callback - either PKCE (code in search) or implicit (tokens in hash)
       const authCode = urlParams.get('code');
       const accessToken = hashParams.get('access_token');
       const refreshToken = hashParams.get('refresh_token');
@@ -93,37 +112,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const isImplicitCallback = !!(accessToken && refreshToken);
 
       try {
-        let session: Session | null = null;
+        let sess: Session | null = null;
         let sessionUser: User | null = null;
 
         if (isPKCECallback) {
-          // PKCE flow - exchange code for session
           const { data, error } = await supabase.auth.exchangeCodeForSession(authCode!);
           if (error) {
             console.error('PKCE exchange error:', error);
+            setAuthError(error.message);
             if (mounted) setLoading(false);
             return;
           }
-          session = data.session;
+          sess = data.session;
           sessionUser = data.session?.user ?? null;
-          // Clean URL - remove code param
           window.history.replaceState(null, '', window.location.pathname);
         } else if (isImplicitCallback) {
-          // Implicit flow - set session from tokens
           const { data, error } = await supabase.auth.setSession(accessToken!, refreshToken!);
           if (error) {
             console.error('Implicit session error:', error);
+            setAuthError(error.message);
             if (mounted) setLoading(false);
             return;
           }
-          session = data.session;
+          sess = data.session;
           sessionUser = data.session?.user ?? null;
-          // Clean URL - remove hash
           window.history.replaceState(null, '', window.location.pathname);
         } else {
-          // Normal page load - get existing session
           const { data: { session: existingSession } } = await supabase.auth.getSession();
-          session = existingSession;
+          sess = existingSession;
           sessionUser = existingSession?.user ?? null;
         }
 
@@ -131,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (sessionUser) {
           await ensureProfile(sessionUser);
-          setSession(session);
+          setSession(sess);
           setUser(sessionUser);
           await fetchProfile(sessionUser.id);
         } else {
@@ -139,25 +155,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (e) {
         console.error('Auth callback error:', e);
+        setAuthError(e instanceof Error ? e.message : 'Authentication failed');
         if (mounted) setLoading(false);
       }
     }
 
     handleAuthCallback();
 
-    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (event, sess) => {
         if (!mounted) return;
 
-        setSession(session);
-        setUser(session?.user ?? null);
+        setSession(sess);
+        setUser(sess?.user ?? null);
 
-        if (session?.user) {
+        if (sess?.user) {
           if (event === 'SIGNED_IN') {
-            await ensureProfile(session.user);
+            await ensureProfile(sess.user);
           }
-          await fetchProfile(session.user.id);
+          await fetchProfile(sess.user.id);
         } else {
           setProfile(null);
         }
@@ -240,6 +256,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       provider: 'google',
       options: {
         redirectTo: window.location.origin,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
       },
     });
     if (error) return { error: error.message };
@@ -255,7 +275,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      user, profile, session, loading,
+      user, profile, session, loading, authError, clearAuthError,
       sendSignInOtp, verifySignInOtp,
       sendSignUpOtp, verifySignUpOtp,
       signInWithGoogle,
