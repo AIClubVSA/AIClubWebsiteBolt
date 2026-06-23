@@ -1,500 +1,488 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import {
-  Brain,
-  Target,
-  Heart,
-  Zap,
-  Users,
-  Sparkles,
-  ArrowRight,
-  ChevronRight,
-  Star,
-  MapPin,
-  Award,
-  Lightbulb,
-  Rocket,
-  Globe,
-  BookOpen,
-  Trophy,
-  ChevronDown,
-  Menu,
-  X,
-  Clock,
   Crown,
   UserCog,
+  Target,
+  BookOpen,
+  Globe,
+  Heart,
   Code2,
   Palette,
+  ArrowRight,
+  ArrowUpRight,
+  Heart as HeartIcon,
+  Target as TargetIcon,
+  Users,
+  Lightbulb,
+  BookOpen as BookOpenIcon,
+  Globe as GlobeIcon,
+  MapPin,
+  Clock,
+  Sparkles,
+  Brain,
+  Star,
+  Lightbulb as Lightbulb2,
+  Rocket,
+  Trophy,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-function useScrollReveal() {
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) entry.target.classList.add('active');
-        });
-      },
-      { threshold: 0.1, rootMargin: '0px 0px -60px 0px' }
-    );
-    document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, []);
-}
+gsap.registerPlugin(ScrollTrigger);
 
-function ValueCard({
-  icon: Icon,
-  title,
-  body,
-  accent,
-}: {
-  icon: React.ElementType;
-  title: string;
-  body: string;
-  accent: string;
-}) {
+function SpatialBackground() {
   return (
-    <div className="reveal glass rounded-2xl p-8 card-hover group">
-      <div className={`w-12 h-12 rounded-xl ${accent} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
-        <Icon className="w-6 h-6 text-white" />
-      </div>
-      <h3 className="text-lg font-semibold text-white mb-3">{title}</h3>
-      <p className="text-gray-400 text-sm leading-relaxed">{body}</p>
+    <div className="spatial" aria-hidden>
+      <div className="spatial-grid" />
+      <div className="blob" style={{ width: 620, height: 620, top: "-8%", left: "-6%", background: "radial-gradient(circle, rgba(99,102,241,0.55), transparent 65%)", opacity: 0.4 }} />
+      <div className="blob" style={{ width: 540, height: 540, top: "32%", right: "-10%", background: "radial-gradient(circle, rgba(6,182,212,0.42), transparent 65%)", opacity: 0.32 }} />
+      <div className="blob" style={{ width: 700, height: 700, bottom: "-12%", left: "20%", background: "radial-gradient(circle, rgba(139,92,246,0.45), transparent 65%)", opacity: 0.3 }} />
     </div>
   );
 }
 
+function CustomCursor() {
+  const dotRef = useRef<HTMLDivElement>(null);
+  const ringRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!window.matchMedia("(pointer: fine)").matches) return;
+    const dot = dotRef.current!, ring = ringRef.current!;
+    document.body.classList.add("cursor-active");
+    gsap.set([dot, ring], { xPercent: -50, yPercent: -50, opacity: 1 });
+    const dx = gsap.quickTo(dot, "x", { duration: 0.12, ease: "power3" });
+    const dy = gsap.quickTo(dot, "y", { duration: 0.12, ease: "power3" });
+    const rx = gsap.quickTo(ring, "x", { duration: 0.42, ease: "power3" });
+    const ry = gsap.quickTo(ring, "y", { duration: 0.42, ease: "power3" });
+    const move = (e: MouseEvent) => { dx(e.clientX); dy(e.clientY); rx(e.clientX); ry(e.clientY); };
+    const sel = "a, button, [data-cursor]";
+    const over = (e: MouseEvent) => { if ((e.target as Element).closest?.(sel)) ring.classList.add("hover"); };
+    const out = (e: MouseEvent) => { if ((e.target as Element).closest?.(sel)) ring.classList.remove("hover"); };
+    const leave = () => gsap.to([dot, ring], { opacity: 0, duration: 0.2 });
+    const enter = () => gsap.to([dot, ring], { opacity: 1, duration: 0.2 });
+    window.addEventListener("mousemove", move);
+    document.addEventListener("mouseover", over);
+    document.addEventListener("mouseout", out);
+    document.documentElement.addEventListener("mouseleave", leave);
+    document.documentElement.addEventListener("mouseenter", enter);
+    return () => {
+      window.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseover", over);
+      document.removeEventListener("mouseout", out);
+      document.documentElement.removeEventListener("mouseleave", leave);
+      document.documentElement.removeEventListener("mouseenter", enter);
+      document.body.classList.remove("cursor-active");
+    };
+  }, []);
+  return (<>
+    <div ref={ringRef} className="cursor-ring" />
+    <div ref={dotRef} className="cursor-dot" />
+  </>);
+}
+
+const FIRST_FOUR = [
+  { name: 'Sammit Basu', role: 'Founder and Head', icon: Crown, color: 'from-amber-500 to-orange-500', desc: 'Leading the vision and direction of the AI Centre' },
+  { name: 'Aarush M Reddy', role: 'Chairman', icon: UserCog, color: 'from-cyan-500 to-blue-500', desc: 'Overseeing club operations and strategic initiatives' },
+  { name: 'Aarav Nadig', role: 'Director', icon: Target, color: 'from-emerald-500 to-teal-500', desc: 'Guiding projects and member development' },
+  { name: 'Arav Prasad', role: 'Secretary', icon: BookOpen, color: 'from-violet-500 to-purple-500', desc: 'Managing communications and documentation' },
+];
+
+const REST = [
+  { name: 'Kushal Rao', role: 'Head of Communications', icon: Globe, color: 'from-blue-500 to-indigo-500', desc: 'Leading outreach and external engagement' },
+  { name: 'Rehaan Malhotra', role: 'Ethics Officer', icon: Heart, color: 'from-rose-500 to-pink-500', desc: 'Ensuring responsible AI practices in all projects' },
+  { name: 'Aarav Nitin Dev', role: 'Programmer and Developer', icon: Code2, color: 'from-green-500 to-emerald-500', desc: 'Building tools and technical infrastructure' },
+  { name: 'Harsh Mehra', role: 'Head of Design', icon: Palette, color: 'from-fuchsia-500 to-pink-500', desc: 'Crafting visual identity and user experiences' },
+];
+
 const milestones = [
-  { year: '2023', title: 'The Spark', desc: 'A small group of curious students gathered after school to experiment with ChatGPT. The first session was messy, exciting, and everyone wanted more.', icon: Lightbulb },
+  { year: '2023', title: 'The Spark', desc: 'A small group of curious students gathered after school to experiment with ChatGPT. The first session was messy, exciting, and everyone wanted more.', icon: Lightbulb2 },
   { year: '2024', title: 'First Builds', desc: 'Students shipped their first real projects — chatbots, image generators, and AI-assisted writing tools. Some entered inter-school competitions.', icon: Rocket },
   { year: '2025', title: 'Growth & Structure', desc: 'The club formalized into tracks: Beginner, Builder, Creator, and Leader. Mentorship pairs and weekly sprints became the rhythm.', icon: Trophy },
   { year: '2026', title: 'The AI Centre', desc: 'Now a thriving community of 20+ students building real projects. The club is the creative hub for AI at Vidyashilp Academy.', icon: Star },
 ];
 
-export default function AboutUsPage() {
-  useScrollReveal();
-  const { user } = useAuth();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+const VALUES = [
+  { icon: HeartIcon, title: "Beginner First", body: "You don't need to know how to code. We design every session, demo, and resource so that students who are brand new feel just as welcome as those who are advanced.", accent: "bg-gradient-to-br from-cyan-500 to-cyan-600" },
+  { icon: TargetIcon, title: "Build, Don't Just Watch", body: "Every track has a project at the end. We don't do passive lectures. You will make something real — a chatbot, a design, a presentation, a working app.", accent: "bg-gradient-to-br from-emerald-500 to-emerald-600" },
+  { icon: Users, title: "Collaboration Over Competition", body: "We work together. Senior students mentor newer ones. Teachers support the ambitious. The best ideas come from teams, not individuals.", accent: "bg-gradient-to-br from-blue-500 to-blue-600" },
+  { icon: Lightbulb, title: "Curiosity Is Enough", body: "You don't need to want a career in AI. You don't need to be good at STEM. If you're curious and willing to try, you belong here.", accent: "bg-gradient-to-br from-amber-500 to-amber-600" },
+  { icon: BookOpenIcon, title: "Ethics and Responsibility", body: "We don't just teach how to use AI. We teach how to use it well — critically, responsibly, and with awareness of bias and impact.", accent: "bg-gradient-to-br from-violet-500 to-violet-600" },
+  { icon: GlobeIcon, title: "Real-World Relevance", body: "We bring in real tools, real projects, and real competitions. What you build here can go on your portfolio, your application, or your personal website.", accent: "bg-gradient-to-br from-rose-500 to-rose-600" },
+];
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 50);
-    window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
+export default function AboutUsPage() {
+  const { user } = useAuth();
+  const [scrolled, setScrolled] = useState(false);
+  const progressRef = useRef<HTMLDivElement>(null);
+  const spotlight = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const el = e.currentTarget;
+    const r = el.getBoundingClientRect();
+    el.style.setProperty("--mx", `${e.clientX - r.left}px`);
+    el.style.setProperty("--my", `${e.clientY - r.top}px`);
   }, []);
 
-  const navLinks = [
-    { href: '/', label: 'Home' },
-    { href: '/about', label: 'About Us' },
-  ];
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      gsap.utils.toArray<HTMLElement>("[data-fade]").forEach((el) => {
+        gsap.from(el, { opacity: 0, y: 40, duration: 1, ease: "power3.out", scrollTrigger: { trigger: el, start: "top 86%" } });
+      });
+
+      if (progressRef.current) {
+        gsap.set(progressRef.current, { scaleX: 0, transformOrigin: "left center" });
+        gsap.to(progressRef.current, { scaleX: 1, ease: "none", scrollTrigger: { start: 0, end: "max", scrub: 0.3 } });
+      }
+
+      gsap.to(".spatial .blob:nth-child(2)", { x: "+=70", scale: 1.18, duration: 16, repeat: -1, yoyo: true, ease: "sine.inOut" });
+      gsap.to(".spatial .blob:nth-child(3)", { x: "-=90", scale: 1.12, duration: 20, repeat: -1, yoyo: true, ease: "sine.inOut" });
+      gsap.to(".spatial .blob:nth-child(4)", { x: "+=60", scale: 1.2, duration: 24, repeat: -1, yoyo: true, ease: "sine.inOut" });
+      gsap.to(".spatial .blob:nth-child(2)", { yPercent: 60, ease: "none", scrollTrigger: { start: 0, end: "max", scrub: 1 } });
+      gsap.to(".spatial .blob:nth-child(3)", { yPercent: -45, ease: "none", scrollTrigger: { start: 0, end: "max", scrub: 1 } });
+      gsap.to(".spatial .blob:nth-child(4)", { yPercent: 35, ease: "none", scrollTrigger: { start: 0, end: "max", scrub: 1.4 } });
+      gsap.to(".spatial-grid", { yPercent: 22, scale: 1.15, ease: "none", scrollTrigger: { start: 0, end: "max", scrub: true } });
+      gsap.to(".spatial", { filter: "hue-rotate(220deg)", ease: "none", scrollTrigger: { start: 0, end: "max", scrub: 1.5 } });
+    });
+    return () => ctx.revert();
+  }, []);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white overflow-x-hidden">
-      {/* Header */}
-      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'glass py-3' : 'py-5'}`}>
-        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3" aria-label="AI Centre home">
-            <img src="/images/WhatsApp_Image_2026-06-03_at_5.22.16_PM.jpeg" className="w-9 h-9 object-contain rounded-lg" alt="AI Club" />
-            <div className="leading-tight">
-              <div className="text-white font-bold text-sm">AI Centre</div>
-              <div className="text-gray-500 text-xs">Vidyashilp Academy</div>
+    <div className="lp" style={{ position: "relative", background: "transparent" }}>
+      <SpatialBackground />
+      <CustomCursor />
+      <div className="lp-content" style={{ position: "relative", zIndex: 1 }}>
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 2, zIndex: 200, background: "transparent" }}>
+          <div ref={progressRef} style={{ height: "100%", width: "100%", background: "linear-gradient(90deg, var(--accent), var(--accent3))", boxShadow: "0 0 12px rgba(99,102,241,0.6)" }} />
+        </div>
+
+        <nav style={{
+          position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
+          transition: "all 0.4s ease", padding: "0 clamp(20px,4vw,56px)",
+          background: scrolled ? "rgba(8,8,10,0.72)" : "transparent",
+          backdropFilter: scrolled ? "blur(16px)" : "none",
+          borderBottom: scrolled ? "1px solid var(--line)" : "1px solid transparent",
+        }}>
+          <div style={{ maxWidth: 1320, margin: "0 auto", height: 72, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 24, height: 24, borderRadius: 6, border: "1px solid rgba(255,255,255,0.25)", display: "grid", placeItems: "center" }}>
+                <div style={{ width: 8, height: 8, background: "#f5f5f7", borderRadius: 2 }} />
+              </div>
+              <span className="lp-display" style={{ fontSize: 17, fontWeight: 600, letterSpacing: "-0.02em" }}>AI Centre</span>
             </div>
-          </Link>
-
-          <nav className="hidden md:flex items-center gap-7" aria-label="Primary">
-            {navLinks.map((l) => (
-              <Link key={l.href} to={l.href} className="text-gray-400 hover:text-white text-sm transition-colors">
-                {l.label}
-              </Link>
-            ))}
-            {user ? (
-              <Link to="/dashboard" className="btn-shine px-4 py-2 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-cyan-500/25 transition-all">
-                Dashboard
-              </Link>
-            ) : (
-              <>
-                <Link to="/login" className="text-gray-400 hover:text-white text-sm transition-colors">Sign In</Link>
-                <Link to="/signup" className="btn-shine px-4 py-2 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-cyan-500/25 transition-all">
-                  Join
-                </Link>
-              </>
-            )}
-          </nav>
-
-          <button className="md:hidden text-gray-400 hover:text-white" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Toggle navigation">
-            {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
-        </div>
-
-        {mobileOpen && (
-          <div className="md:hidden glass mt-3 mx-4 rounded-xl p-4 flex flex-col gap-4">
-            {navLinks.map((l) => (
-              <Link key={l.href} to={l.href} className="text-gray-300 hover:text-white text-sm transition-colors" onClick={() => setMobileOpen(false)}>
-                {l.label}
-              </Link>
-            ))}
-            <hr className="border-white/10" />
-            {user ? (
-              <Link to="/dashboard" className="text-center py-2.5 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-lg text-sm font-semibold">Dashboard</Link>
-            ) : (
-              <>
-                <Link to="/login" className="text-gray-300 hover:text-white text-sm transition-colors text-center">Sign In</Link>
-                <Link to="/signup" className="text-center py-2.5 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-lg text-sm font-semibold">Join the Club</Link>
-              </>
-            )}
+            <div className="lp-hide-mobile" style={{ display: "flex", gap: 36, alignItems: "center" }}>
+              <Link to="/" className="lp-link" style={{ fontSize: 14, color: "var(--text-muted)" }}>Home</Link>
+              <Link to="/about" className="lp-link" style={{ fontSize: 14, color: "var(--text)" }}>About Us</Link>
+            </div>
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <Link to="/login" className="lp-link lp-hide-mobile" style={{ fontSize: 14, color: "var(--text-muted)" }}>Log in</Link>
+              <Link to="/login" className="lp-btn lp-btn-solid" style={{ padding: "9px 18px", fontSize: 13 }}>Join the club <ArrowRight size={14} /></Link>
+            </div>
           </div>
-        )}
-      </header>
+        </nav>
 
-      {/* Hero */}
-      <section className="relative min-h-[70vh] flex items-center justify-center overflow-hidden pt-20">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-emerald-500/5" aria-hidden="true" />
-        <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" aria-hidden="true" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} aria-hidden="true" />
-
-        <div className="relative z-10 max-w-5xl mx-auto px-6 text-center">
-          <p className="reveal inline-flex items-center gap-2 px-3 py-1.5 glass rounded-full text-xs text-cyan-400 mb-6">
-            <Zap className="w-3.5 h-3.5" />
-            About the AI Centre
-          </p>
-          <h1 className="reveal text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6">
-            Built by students, <br />
-            <span className="gradient-text">for students who want to make things.</span>
-          </h1>
-          <p className="reveal text-gray-400 text-lg leading-relaxed max-w-2xl mx-auto">
-            The AI Centre at Vidyashilp Academy is a student-led club where curiosity meets creativity. We believe AI is a tool anyone can learn to use, and we're building a community that proves it.
-          </p>
-        </div>
-      </section>
-
-      {/* Leadership Team */}
-      <section className="py-24 relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-500/5 to-transparent" aria-hidden="true" />
-        <div className="relative max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <p className="reveal text-cyan-400 font-mono text-xs mb-3">LEADERSHIP</p>
-            <h2 className="reveal text-3xl md:text-4xl font-bold mb-5">
-              Meet the team <br />
-              <span className="gradient-text">behind the AI Centre.</span>
-            </h2>
-            <p className="reveal text-gray-400 max-w-xl mx-auto">
-              Our student leadership team drives the club's vision, organizes events, and ensures every member has the support they need to grow.
+        {/* Hero */}
+        <section style={{ position: "relative", height: "70vh", minHeight: 520, overflow: "hidden", display: "flex", alignItems: "center", borderBottom: "1px solid var(--line)" }}>
+          <div className="lp-grid-bg" style={{ position: "absolute", inset: 0, opacity: 0.6 }} />
+          <div className="lp-vignette" style={{ position: "absolute", inset: 0 }} />
+          <div style={{ position: "relative", zIndex: 2, width: "100%", maxWidth: 1320, margin: "0 auto", padding: "0 clamp(20px,4vw,56px)" }}>
+            <div className="lp-eyebrow" style={{ marginBottom: 28 }} data-fade>[ About the AI Centre ]</div>
+            <h1 className="lp-display" style={{ fontSize: "clamp(2.4rem, 7vw, 5.2rem)", margin: 0, lineHeight: 1.05, maxWidth: 860 }}>
+              Built by students,<br />
+              <span style={{ color: "var(--text-muted)" }}>for students who want to make things.</span>
+            </h1>
+            <p style={{ maxWidth: 580, marginTop: 32, fontSize: "clamp(15px,1.4vw,18px)", lineHeight: 1.6, color: "var(--text-muted)" }} data-fade>
+              The AI Centre at Vidyashilp Academy is a student-led club where curiosity meets creativity. We believe AI is a tool anyone can learn to use, and we're building a community that proves it.
             </p>
           </div>
+        </section>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {[
-              { name: 'Sammit Basu', role: 'Founder and Head', icon: Crown, color: 'from-amber-500 to-orange-500', desc: 'Leading the vision and direction of the AI Centre' },
-              { name: 'Aarush M Reddy', role: 'Chairman', icon: UserCog, color: 'from-cyan-500 to-blue-500', desc: 'Overseeing club operations and strategic initiatives' },
-              { name: 'Aarav Nadig', role: 'Director', icon: Target, color: 'from-emerald-500 to-teal-500', desc: 'Guiding projects and member development' },
-              { name: 'Arav Prasad', role: 'Secretary', icon: BookOpen, color: 'from-violet-500 to-purple-500', desc: 'Managing communications and documentation' },
-              { name: 'Kushal Rao', role: 'Head of Communications', icon: Globe, color: 'from-blue-500 to-indigo-500', desc: 'Leading outreach and external engagement' },
-              { name: 'Rehaan Malhotra', role: 'Ethics Officer', icon: Heart, color: 'from-rose-500 to-pink-500', desc: 'Ensuring responsible AI practices in all projects' },
-              { name: 'Aarav Nitin Dev', role: 'Programmer and Developer', icon: Code2, color: 'from-green-500 to-emerald-500', desc: 'Building tools and technical infrastructure' },
-              { name: 'Harsh Mehra', role: 'Head of Design', icon: Palette, color: 'from-fuchsia-500 to-pink-500', desc: 'Crafting visual identity and user experiences' },
-            ].map((member) => {
-              const Icon = member.icon;
-              return (
-                <div key={member.name} className="reveal glass rounded-2xl p-6 text-center card-hover group">
-                  <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${member.color} flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                    <Icon className="w-7 h-7 text-white" />
-                  </div>
-                  <h3 className="text-white font-semibold text-base mb-1">{member.name}</h3>
-                  <p className="text-cyan-400 text-xs font-medium mb-2">{member.role}</p>
-                  <p className="text-gray-500 text-xs leading-relaxed">{member.desc}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* What We Stand For */}
-      <section className="py-24 relative">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <p className="reveal text-cyan-400 font-mono text-xs mb-3">OUR VALUES</p>
-            <h2 className="reveal text-3xl md:text-4xl font-bold mb-5">
-              What makes this club <br />
-              <span className="gradient-text">feel different.</span>
+        {/* Leadership Team */}
+        <section style={{ padding: "clamp(120px,18vh,220px) clamp(20px,4vw,56px)" }}>
+          <div style={{ maxWidth: 1320, margin: "0 auto" }}>
+            <div className="lp-eyebrow" style={{ marginBottom: 24 }} data-fade>[ Leadership ]</div>
+            <h2 className="lp-display" data-fade style={{ fontSize: "clamp(2rem,5vw,4rem)", lineHeight: 1.02, marginBottom: 16 }}>
+              Meet the team behind the AI Centre.
             </h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            <ValueCard
-              icon={Heart}
-              title="Beginner First"
-              body="You don't need to know how to code. We design every session, demo, and resource so that students who are brand new feel just as welcome as those who are advanced."
-              accent="bg-gradient-to-br from-cyan-500 to-cyan-600"
-            />
-            <ValueCard
-              icon={Target}
-              title="Build, Don't Just Watch"
-              body="Every track has a project at the end. We don't do passive lectures. You will make something real — a chatbot, a design, a presentation, a working app."
-              accent="bg-gradient-to-br from-emerald-500 to-emerald-600"
-            />
-            <ValueCard
-              icon={Users}
-              title="Collaboration Over Competition"
-              body="We work together. Senior students mentor newer ones. Teachers support the ambitious. The best ideas come from teams, not individuals."
-              accent="bg-gradient-to-br from-blue-500 to-blue-600"
-            />
-            <ValueCard
-              icon={Lightbulb}
-              title="Curiosity Is Enough"
-              body="You don't need to want a career in AI. You don't need to be good at STEM. If you're curious and willing to try, you belong here."
-              accent="bg-gradient-to-br from-amber-500 to-amber-600"
-            />
-            <ValueCard
-              icon={BookOpen}
-              title="Ethics and Responsibility"
-              body="We don't just teach how to use AI. We teach how to use it well — critically, responsibly, and with awareness of bias and impact."
-              accent="bg-gradient-to-br from-violet-500 to-violet-600"
-            />
-            <ValueCard
-              icon={Globe}
-              title="Real-World Relevance"
-              body="We bring in real tools, real projects, and real competitions. What you build here can go on your portfolio, your application, or your personal website."
-              accent="bg-gradient-to-br from-rose-500 to-rose-600"
-            />
-          </div>
-        </div>
-      </section>
+            <p data-fade style={{ color: "var(--text-muted)", fontSize: 16, lineHeight: 1.6, maxWidth: 560, marginBottom: 72 }}>
+              Our student leadership team drives the club's vision, organizes events, and ensures every member has the support they need to grow.
+            </p>
 
-      {/* Stats Strip */}
-      <section className="py-16 relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-transparent to-emerald-500/5" aria-hidden="true" />
-        <div className="relative max-w-6xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {/* First 4 — individual rows, first slightly larger */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 28, marginBottom: 72 }}>
+              {FIRST_FOUR.map((member, idx) => {
+                const Icon = member.icon;
+                const isFirst = idx === 0;
+                return (
+                  <div
+                    key={member.name}
+                    data-fade
+                    className="lp-panel"
+                    onMouseMove={spotlight}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: isFirst ? "100px 1fr 280px" : "80px 1fr 260px",
+                      gap: "clamp(16px,4vw,48px)",
+                      alignItems: "center",
+                      padding: isFirst ? "32px 36px" : "24px 32px",
+                      borderRadius: 16,
+                      border: "1px solid var(--line)",
+                      background: "linear-gradient(160deg, rgba(255,255,255,0.025), rgba(255,255,255,0))",
+                      position: "relative",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div style={{
+                      width: isFirst ? 72 : 56,
+                      height: isFirst ? 72 : 56,
+                      borderRadius: "50%",
+                      background: `linear-gradient(to bottom right, var(--tw-gradient-stops))`,
+                      display: "grid",
+                      placeItems: "center",
+                      flexShrink: 0,
+                    }} className={`bg-gradient-to-br ${member.color}`}>
+                      <Icon size={isFirst ? 32 : 24} color="#fff" />
+                    </div>
+                    <div>
+                      <h3 className="lp-display" style={{ fontSize: isFirst ? "clamp(1.4rem,2.4vw,1.9rem)" : "clamp(1.1rem,2vw,1.5rem)", letterSpacing: "-0.02em", marginBottom: 6 }}>{member.name}</h3>
+                      <p style={{ color: "var(--text-muted)", fontSize: isFirst ? 15 : 13.5, lineHeight: 1.5 }}>{member.desc}</p>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <span className="lp-eyebrow" style={{ fontSize: 10, color: "var(--accent3)" }}>{member.role}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Rest in a 4-col grid */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 20 }}>
+              {REST.map((member) => {
+                const Icon = member.icon;
+                return (
+                  <div
+                    key={member.name}
+                    data-fade
+                    className="lp-panel"
+                    onMouseMove={spotlight}
+                    style={{ padding: "24px", borderRadius: 14, textAlign: "center" }}
+                  >
+                    <div className={`bg-gradient-to-br ${member.color}`} style={{ width: 52, height: 52, borderRadius: "50%", display: "grid", placeItems: "center", margin: "0 auto 14px" }}>
+                      <Icon size={24} color="#fff" />
+                    </div>
+                    <h3 className="lp-display" style={{ fontSize: 16, letterSpacing: "-0.02em", marginBottom: 4 }}>{member.name}</h3>
+                    <p style={{ color: "var(--accent3)", fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 8 }}>{member.role}</p>
+                    <p style={{ color: "var(--text-muted)", fontSize: 13, lineHeight: 1.5 }}>{member.desc}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* Values */}
+        <section style={{ padding: "clamp(120px,18vh,220px) clamp(20px,4vw,56px)", borderTop: "1px solid var(--line)" }}>
+          <div style={{ maxWidth: 1320, margin: "0 auto" }}>
+            <div className="lp-eyebrow" style={{ marginBottom: 24 }} data-fade>[ Our Values ]</div>
+            <h2 className="lp-display" data-fade style={{ fontSize: "clamp(2rem,5vw,4rem)", lineHeight: 1.02, marginBottom: 72 }}>
+              What makes this club feel different.
+            </h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 20 }}>
+              {VALUES.map((v) => {
+                const Icon = v.icon;
+                return (
+                  <div
+                    key={v.title}
+                    data-fade
+                    className="lp-panel"
+                    onMouseMove={spotlight}
+                    style={{ padding: "32px", borderRadius: 16 }}
+                  >
+                    <div className={v.accent} style={{ width: 44, height: 44, borderRadius: 10, display: "grid", placeItems: "center", marginBottom: 18 }}>
+                      <Icon size={20} color="#fff" />
+                    </div>
+                    <h3 className="lp-display" style={{ fontSize: 18, letterSpacing: "-0.02em", marginBottom: 10 }}>{v.title}</h3>
+                    <p style={{ color: "var(--text-muted)", fontSize: 14, lineHeight: 1.6 }}>{v.body}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* Stats */}
+        <section style={{ padding: "clamp(60px,10vh,100px) clamp(20px,4vw,56px)", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}>
+          <div style={{ maxWidth: 1320, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 20 }}>
             {[
               { value: '20+', label: 'Active Members' },
               { value: '4', label: 'Learning Tracks' },
               { value: '15+', label: 'Projects Built' },
               { value: '3', label: 'Competitions Entered' },
             ].map((stat) => (
-              <div key={stat.label} className="reveal glass rounded-2xl p-6 text-center">
-                <div className="text-3xl md:text-4xl font-bold gradient-text mb-2">{stat.value}</div>
-                <div className="text-gray-500 text-sm">{stat.label}</div>
+              <div key={stat.label} data-fade className="lp-panel" style={{ padding: "32px", textAlign: "center", borderRadius: 16 }}>
+                <div className="lp-display" style={{ fontSize: "clamp(2rem,4vw,3rem)", background: "linear-gradient(135deg, var(--accent), var(--accent3))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: 8 }}>{stat.value}</div>
+                <span className="lp-eyebrow">{stat.label}</span>
               </div>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Our Story / Timeline */}
-      <section className="py-24 relative">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <p className="reveal text-cyan-400 font-mono text-xs mb-3">OUR JOURNEY</p>
-            <h2 className="reveal text-3xl md:text-4xl font-bold mb-5">
-              How the club <br />
-              <span className="gradient-text">came to life.</span>
+        {/* Timeline */}
+        <section style={{ padding: "clamp(120px,18vh,220px) clamp(20px,4vw,56px)" }}>
+          <div style={{ maxWidth: 960, margin: "0 auto" }}>
+            <div className="lp-eyebrow" style={{ marginBottom: 24 }} data-fade>[ Our Journey ]</div>
+            <h2 className="lp-display" data-fade style={{ fontSize: "clamp(2rem,5vw,4rem)", lineHeight: 1.02, marginBottom: 72 }}>
+              How the club came to life.
             </h2>
-          </div>
-
-          <div className="relative">
-            {/* Vertical line */}
-            <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-cyan-500/50 via-emerald-500/30 to-transparent md:-translate-x-px" />
-
-            <div className="space-y-12">
-              {milestones.map((m, i) => {
-                const Icon = m.icon;
-                const isLeft = i % 2 === 0;
-                return (
-                  <div key={m.year} className="reveal relative flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-0">
-                    {/* Node on timeline */}
-                    <div className="absolute left-4 md:left-1/2 md:-translate-x-1/2 w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center z-10 ring-4 ring-[#0a0a0f]">
-                      <Icon className="w-4 h-4 text-white" />
-                    </div>
-
-                    {/* Content */}
-                    <div className={`pl-14 md:pl-0 md:w-1/2 ${isLeft ? 'md:pr-12 md:text-right' : 'md:ml-auto md:pl-12 md:text-left'}`}>
-                      <div className="glass rounded-2xl p-6 card-hover">
-                        <span className="text-cyan-400 font-mono text-xs mb-2 inline-block">{m.year}</span>
-                        <h3 className="text-xl font-bold text-white mb-2">{m.title}</h3>
-                        <p className="text-gray-400 text-sm leading-relaxed">{m.desc}</p>
+            <div style={{ position: "relative" }}>
+              <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 1, background: "linear-gradient(to bottom, var(--accent), var(--accent3), transparent)" }} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 48 }}>
+                {milestones.map((m, i) => {
+                  const Icon = m.icon;
+                  return (
+                    <div key={m.year} data-fade style={{ display: "grid", gridTemplateColumns: "48px 1fr", gap: 28, alignItems: "flex-start", paddingLeft: 24 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: "50%", background: "linear-gradient(135deg, var(--accent), var(--accent3))", display: "grid", placeItems: "center", marginLeft: -44, flexShrink: 0, border: "3px solid var(--bg)" }}>
+                        <Icon size={16} color="#fff" />
+                      </div>
+                      <div>
+                        <span className="lp-eyebrow" style={{ color: "var(--accent3)", marginBottom: 6, display: "inline-block" }}>{m.year}</span>
+                        <h3 className="lp-display" style={{ fontSize: "clamp(1.2rem,2.2vw,1.6rem)", letterSpacing: "-0.02em", marginBottom: 8 }}>{m.title}</h3>
+                        <p style={{ color: "var(--text-muted)", fontSize: 15, lineHeight: 1.6, maxWidth: 560 }}>{m.desc}</p>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Team / Advisors */}
+        <section style={{ padding: "clamp(120px,18vh,220px) clamp(20px,4vw,56px)", borderTop: "1px solid var(--line)" }}>
+          <div style={{ maxWidth: 1320, margin: "0 auto" }}>
+            <div className="lp-eyebrow" style={{ marginBottom: 24 }} data-fade>[ The People ]</div>
+            <h2 className="lp-display" data-fade style={{ fontSize: "clamp(2rem,5vw,4rem)", lineHeight: 1.02, marginBottom: 16 }}>
+              Who makes this club actually run.
+            </h2>
+            <p data-fade style={{ color: "var(--text-muted)", fontSize: 16, lineHeight: 1.6, maxWidth: 560, marginBottom: 72 }}>
+              The AI Centre is student-led with support from teacher advisors. Leadership rotates, and every member has a voice in shaping the club.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 20 }}>
+              {[
+                { title: "Student Leaders", body: "Senior members who run sessions, plan events, and mentor newer students. The leadership team rotates every term to keep ideas fresh.", icon: Users },
+                { title: "Teacher Advisors", body: "Faculty members who guide structure, connect the club to school resources, and help students navigate competitions and applications.", icon: Star },
+                { title: "Every Member", body: "The club is shaped by everyone who shows up. Ideas, feedback, and new directions come from the full community — not just the leadership.", icon: Sparkles },
+              ].map((card) => {
+                const Icon = card.icon;
+                return (
+                  <div key={card.title} data-fade className="lp-panel" onMouseMove={spotlight} style={{ padding: "36px", borderRadius: 16 }}>
+                    <div style={{ width: 48, height: 48, borderRadius: 10, background: "rgba(99,102,241,0.12)", display: "grid", placeItems: "center", marginBottom: 18 }}>
+                      <Icon size={22} color="var(--accent)" />
+                    </div>
+                    <h3 className="lp-display" style={{ fontSize: 18, letterSpacing: "-0.02em", marginBottom: 10 }}>{card.title}</h3>
+                    <p style={{ color: "var(--text-muted)", fontSize: 14, lineHeight: 1.6 }}>{card.body}</p>
                   </div>
                 );
               })}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Team / Advisors */}
-      <section className="py-24 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/5 via-transparent to-cyan-500/5" aria-hidden="true" />
-        <div className="relative max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <p className="reveal text-cyan-400 font-mono text-xs mb-3">THE PEOPLE</p>
-            <h2 className="reveal text-3xl md:text-4xl font-bold mb-5">
-              Who makes this club <br />
-              <span className="gradient-text">actually run.</span>
-            </h2>
-            <p className="reveal text-gray-400 max-w-xl mx-auto">
-              The AI Centre is student-led with support from teacher advisors. Leadership rotates, and every member has a voice in shaping the club.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="reveal glass rounded-2xl p-8 text-center card-hover">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 flex items-center justify-center mx-auto mb-4">
-                <Users className="w-8 h-8 text-cyan-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-white mb-2">Student Leaders</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Senior members who run sessions, plan events, and mentor newer students. The leadership team rotates every term to keep ideas fresh.
-              </p>
-            </div>
-
-            <div className="reveal glass rounded-2xl p-8 text-center card-hover">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-500/20 to-rose-500/20 flex items-center justify-center mx-auto mb-4">
-                <Award className="w-8 h-8 text-amber-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-white mb-2">Teacher Advisors</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Faculty members who guide structure, connect the club to school resources, and help students navigate competitions and applications.
-              </p>
-            </div>
-
-            <div className="reveal glass rounded-2xl p-8 text-center card-hover">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500/20 to-blue-500/20 flex items-center justify-center mx-auto mb-4">
-                <Sparkles className="w-8 h-8 text-violet-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-white mb-2">Every Member</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                The club is shaped by everyone who shows up. Ideas, feedback, and new directions come from the full community — not just the leadership.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Location & When */}
-      <section className="py-24 relative">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+        {/* Location & When */}
+        <section style={{ padding: "clamp(120px,18vh,220px) clamp(20px,4vw,56px)", borderTop: "1px solid var(--line)" }}>
+          <div style={{ maxWidth: 1320, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "clamp(40px,6vw,80px)", alignItems: "start" }}>
             <div>
-              <p className="reveal text-cyan-400 font-mono text-xs mb-3">GET INVOLVED</p>
-              <h2 className="reveal text-3xl md:text-4xl font-bold mb-6">
-                Where and when<br />
-                <span className="gradient-text">we meet.</span>
+              <div className="lp-eyebrow" style={{ marginBottom: 24 }} data-fade>[ Get Involved ]</div>
+              <h2 className="lp-display" data-fade style={{ fontSize: "clamp(2rem,5vw,4rem)", lineHeight: 1.02, marginBottom: 48 }}>
+                Where and when we meet.
               </h2>
-              <div className="reveal space-y-6">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center shrink-0">
-                    <MapPin className="w-6 h-6 text-cyan-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-white mb-1">Vidyashilp Academy</h3>
-                    <p className="text-gray-400 text-sm">Bangalore, Karnataka</p>
-                    <p className="text-gray-500 text-sm">Sessions held in the school's Innovation Lab and other designated spaces.</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center shrink-0">
-                    <Clock className="w-6 h-6 text-emerald-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-white mb-1">Weekly During Club Period</h3>
-                    <p className="text-gray-400 text-sm">Scheduled sessions during school hours, plus optional extended builds for competitions and showcase prep.</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
-                    <Sparkles className="w-6 h-6 text-amber-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-white mb-1">Open to All Students</h3>
-                    <p className="text-gray-400 text-sm">No application required. Just create an account and show up. Every skill level and background is welcome.</p>
-                  </div>
-                </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+                {[
+                  { icon: MapPin, title: "Vidyashilp Academy", lines: ["Bangalore, Karnataka", "Sessions held in the school's Innovation Lab and other designated spaces."] },
+                  { icon: Clock, title: "Weekly During Club Period", lines: ["Scheduled sessions during school hours, plus optional extended builds for competitions and showcase prep."] },
+                  { icon: Sparkles, title: "Open to All Students", lines: ["No application required. Just create an account and show up. Every skill level and background is welcome."] },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <div key={item.title} data-fade style={{ display: "flex", gap: 18, alignItems: "flex-start" }}>
+                      <div style={{ width: 44, height: 44, borderRadius: 10, background: "rgba(6,182,212,0.12)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                        <Icon size={20} color="var(--accent3)" />
+                      </div>
+                      <div>
+                        <h3 className="lp-display" style={{ fontSize: 16, letterSpacing: "-0.02em", marginBottom: 4 }}>{item.title}</h3>
+                        {item.lines.map((l, i) => (
+                          <p key={i} style={{ color: i === 0 ? "var(--text-muted)" : "var(--text-muted)", fontSize: 14, lineHeight: 1.6 }}>{l}</p>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
-            <div className="reveal glass rounded-3xl p-8 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-emerald-500/10" />
-              <div className="relative">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                    <Brain className="w-5 h-5 text-cyan-400" />
-                  </div>
-                  <h3 className="text-xl font-bold text-white">Ready to join?</h3>
+            <div data-fade className="lp-panel" onMouseMove={spotlight} style={{ padding: "40px", borderRadius: 18 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 24 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 10, background: "rgba(6,182,212,0.12)", display: "grid", placeItems: "center" }}>
+                  <Brain size={20} color="var(--accent3)" />
                 </div>
-                <p className="text-gray-400 text-sm leading-relaxed mb-6">
-                  If you're curious about AI, creative about what you want to make, and want to be around people who feel the same — the club is for you. No experience needed.
+                <h3 className="lp-display" style={{ fontSize: 20, letterSpacing: "-0.02em" }}>Ready to join?</h3>
+              </div>
+              <p style={{ color: "var(--text-muted)", fontSize: 15, lineHeight: 1.6, marginBottom: 32 }}>
+                If you're curious about AI, creative about what you want to make, and want to be around people who feel the same — the club is for you. No experience needed.
+              </p>
+              {user ? (
+                <Link to="/dashboard" className="lp-btn lp-btn-solid" style={{ width: "100%", justifyContent: "center", padding: "14px 24px" }}>
+                  Go to Dashboard <ArrowRight size={16} />
+                </Link>
+              ) : (
+                <Link to="/signup" className="lp-btn lp-btn-solid" style={{ width: "100%", justifyContent: "center", padding: "14px 24px" }}>
+                  Create your account <ArrowRight size={16} />
+                </Link>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer style={{ borderTop: "1px solid var(--line)", padding: "56px clamp(20px,4vw,56px) 40px" }}>
+          <div style={{ maxWidth: 1320, margin: "0 auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 40, marginBottom: 56 }}>
+              <div style={{ maxWidth: 360 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+                  <div style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid rgba(255,255,255,0.25)", display: "grid", placeItems: "center" }}>
+                    <div style={{ width: 7, height: 7, background: "#f5f5f7", borderRadius: 2 }} />
+                  </div>
+                  <span className="lp-display" style={{ fontSize: 16, fontWeight: 600 }}>AI Centre</span>
+                </div>
+                <p style={{ color: "var(--text-muted)", fontSize: 14, lineHeight: 1.6 }}>
+                  A student-led artificial intelligence and machine learning club.
                 </p>
-                {user ? (
-                  <Link to="/dashboard" className="btn-shine group w-full px-6 py-3.5 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-xl font-semibold hover:shadow-xl hover:shadow-cyan-500/25 transition-all flex items-center justify-center gap-2">
-                    Go to Dashboard
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                ) : (
-                  <Link to="/signup" className="btn-shine group w-full px-6 py-3.5 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-xl font-semibold hover:shadow-xl hover:shadow-cyan-500/25 transition-all flex items-center justify-center gap-2">
-                    Create your account
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                )}
               </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="py-10 border-t border-white/10">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="grid md:grid-cols-4 gap-8 mb-10">
-            <div>
-              <div className="flex items-center gap-3 mb-3">
-                <img src="/images/WhatsApp_Image_2026-06-03_at_5.22.16_PM.jpeg" className="w-8 h-8 object-contain rounded-lg" alt="AI Club" />
+              <div style={{ display: "flex", gap: "clamp(40px,8vw,100px)", flexWrap: "wrap" }}>
                 <div>
-                  <p className="text-white font-bold text-sm">AI Centre</p>
-                  <p className="text-gray-600 text-xs">Vidyashilp Academy</p>
+                  <div className="lp-eyebrow" style={{ marginBottom: 16 }}>Explore</div>
+                  <Link to="/" className="lp-link" style={{ display: "block", color: "var(--text-muted)", fontSize: 14, padding: "6px 0" }}>Home</Link>
+                  <Link to="/about" className="lp-link" style={{ display: "block", color: "var(--text-muted)", fontSize: 14, padding: "6px 0" }}>About Us</Link>
+                </div>
+                <div>
+                  <div className="lp-eyebrow" style={{ marginBottom: 16 }}>Portal</div>
+                  <Link to="/login" className="lp-link" style={{ display: "block", color: "var(--text-muted)", fontSize: 14, padding: "6px 0" }}>Member log in</Link>
+                  <Link to="/login" className="lp-link" style={{ display: "block", color: "var(--text-muted)", fontSize: 14, padding: "6px 0" }}>Join the club</Link>
                 </div>
               </div>
-              <p className="text-gray-600 text-xs leading-relaxed">Build, create, and lead.</p>
             </div>
-            <div>
-              <p className="font-semibold text-white text-sm mb-3">Navigation</p>
-              <ul className="space-y-2">
-                <li><Link to="/" className="text-gray-500 hover:text-cyan-400 transition-colors text-xs">Home</Link></li>
-                <li><Link to="/about" className="text-gray-500 hover:text-cyan-400 transition-colors text-xs">About Us</Link></li>
-              </ul>
-            </div>
-            <div>
-              <p className="font-semibold text-white text-sm mb-3">Account</p>
-              <ul className="space-y-2">
-                {user ? (
-                  <li><Link to="/dashboard" className="text-gray-500 hover:text-cyan-400 transition-colors text-xs">Dashboard</Link></li>
-                ) : (
-                  <>
-                    <li><Link to="/signup" className="text-gray-500 hover:text-cyan-400 transition-colors text-xs">Join the club</Link></li>
-                    <li><Link to="/login" className="text-gray-500 hover:text-cyan-400 transition-colors text-xs">Sign in</Link></li>
-                  </>
-                )}
-              </ul>
-            </div>
-            <div>
-              <p className="font-semibold text-white text-sm mb-3">Connect</p>
-              <div className="flex gap-3">
-                {[{ Icon: Users }, { Icon: Star }, { Icon: Brain }].map(({ Icon }, i) => (
-                  <a key={i} href="#" className="w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center hover:bg-cyan-500/20 transition-colors">
-                    <Icon className="w-4 h-4 text-gray-400" />
-                  </a>
-                ))}
-              </div>
+            <div className="lp-rule" />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16, paddingTop: 28 }}>
+              <span className="lp-eyebrow">© {new Date().getFullYear()} AI Centre</span>
+              <span className="lp-eyebrow">Learn · Build · Collaborate · Shape the future</span>
             </div>
           </div>
-
-          <div className="pt-6 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-3">
-            <p className="text-gray-600 text-xs">AI Centre &bull; Vidyashilp Academy &bull; Build, create, and lead</p>
-            <p className="text-gray-600 text-xs">&copy; {new Date().getFullYear()} AI Centre. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      </div>
     </div>
   );
 }
