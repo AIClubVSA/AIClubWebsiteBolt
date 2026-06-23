@@ -91,7 +91,7 @@ export default function AboutUsPage() {
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'glass py-3' : 'py-5'}`}>
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3" aria-label="AI Centre home">
-            <img src="/files_10604804-2026-06-17T04-45-00-187Z-unnamed.png" className="w-9 h-9 object-contain rounded-lg" alt="AI Club" />
+            <img src="/images/WhatsApp_Image_2026-06-03_at_5.22.16_PM.jpeg" className="w-9 h-9 object-contain rounded-lg" alt="AI Club" />
             <div className="leading-tight">
               <div className="text-white font-bold text-sm">AI Centre</div>
               <div className="text-gray-500 text-xs">Vidyashilp Academy</div>
@@ -403,7 +403,7 @@ export default function AboutUsPage() {
           <div className="grid md:grid-cols-4 gap-8 mb-10">
             <div>
               <div className="flex items-center gap-3 mb-3">
-                <img src="/files_10604804-2026-06-17T04-45-00-187Z-unnamed.png" className="w-8 h-8 object-contain rounded-lg" alt="AI Club" />
+                <img src="/images/WhatsApp_Image_2026-06-03_at_5.22.16_PM.jpeg" className="w-8 h-8 object-contain rounded-lg" alt="AI Club" />
                 <div>
                   <p className="text-white font-bold text-sm">AI Centre</p>
                   <p className="text-gray-600 text-xs">Vidyashilp Academy</p>

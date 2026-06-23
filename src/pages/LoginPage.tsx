@@ -127,7 +127,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-3 mb-6">
-            <img src="/files_10604804-2026-06-17T04-45-00-187Z-unnamed.png" className="w-10 h-10 object-contain rounded-lg" alt="AI Club" />
+            <img src="/images/WhatsApp_Image_2026-06-03_at_5.22.16_PM.jpeg" className="w-10 h-10 object-contain rounded-lg" alt="AI Club" />
             <span className="text-xl font-bold text-white">AI Centre</span>
           </Link>
           <h1 className="text-3xl font-bold text-white mb-2">

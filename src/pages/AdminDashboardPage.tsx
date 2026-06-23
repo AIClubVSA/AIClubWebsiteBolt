@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth, Profile } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Project, Announcement, Class, Message, Attendance, AttendanceStatus, ClassNoteFile } from '../types/database';
+import { Project, Announcement, Class, Message, Attendance, AttendanceStatus, ClassNoteFile, Poll, PollOption, PollVote } from '../types/database';
 import {
   LayoutDashboard,
   Users,
@@ -30,10 +30,13 @@ import {
   File,
   Download,
   ExternalLink,
+  BarChart2,
+  ToggleLeft,
+  ToggleRight,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
-type AdminTabType = 'overview' | 'users' | 'projects' | 'messages' | 'classes' | 'attendance' | 'notes' | 'announcements';
+type AdminTabType = 'overview' | 'users' | 'projects' | 'messages' | 'classes' | 'attendance' | 'notes' | 'announcements' | 'polls';
 
 export default function AdminDashboardPage() {
   const { profile, signOut } = useAuth();
@@ -48,6 +51,9 @@ export default function AdminDashboardPage() {
   const [stats, setStats] = useState({ students: 0, projects: 0, pendingMessages: 0, upcomingClasses: 0 });
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [classNoteFiles, setClassNoteFiles] = useState<ClassNoteFile[]>([]);
+  const [polls, setPolls] = useState<Poll[]>([]);
+  const [pollOptions, setPollOptions] = useState<PollOption[]>([]);
+  const [pollVotes, setPollVotes] = useState<PollVote[]>([]);
 
   useEffect(() => {
     if (profile && profile.role === 'admin') {
@@ -57,7 +63,7 @@ export default function AdminDashboardPage() {
 
   async function fetchAdminData() {
     try {
-      const [studentsRes, projectsRes, announcementsRes, classesRes, messagesRes, attendanceRes, classNoteFilesRes] = await Promise.all([
+      const [studentsRes, projectsRes, announcementsRes, classesRes, messagesRes, attendanceRes, classNoteFilesRes, pollsRes, pollOptionsRes, pollVotesRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('role', 'student').order('created_at', { ascending: false }),
         supabase.from('projects').select('*, profiles!projects_student_id_fkey(*)').order('created_at', { ascending: false }),
         supabase.from('announcements').select('*').order('created_at', { ascending: false }),
@@ -65,6 +71,9 @@ export default function AdminDashboardPage() {
         supabase.from('messages').select('*, sender:profiles!messages_sender_id_fkey(*), receiver:profiles!messages_receiver_id_fkey(*)').or(`sender_id.eq.${profile!.id},receiver_id.eq.${profile!.id}`).order('created_at', { ascending: false }),
         supabase.from('attendance').select('*').order('updated_at', { ascending: false }),
         supabase.from('class_notes_files').select('*').order('created_at', { ascending: false }),
+        supabase.from('polls').select('*').order('created_at', { ascending: false }),
+        supabase.from('poll_options').select('*').order('display_order', { ascending: true }),
+        supabase.from('poll_votes').select('*'),
       ]);
 
       setStudents(studentsRes.data || []);
@@ -74,6 +83,9 @@ export default function AdminDashboardPage() {
       setMessages(messagesRes.data || []);
       setAttendance(attendanceRes.data || []);
       setClassNoteFiles(classNoteFilesRes.data || []);
+      setPolls(pollsRes.data || []);
+      setPollOptions(pollOptionsRes.data || []);
+      setPollVotes(pollVotesRes.data || []);
 
       const today = new Date();
       setStats({
@@ -98,6 +110,7 @@ export default function AdminDashboardPage() {
     { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
     { id: 'notes', label: 'Class Notes', icon: StickyNote },
     { id: 'announcements', label: 'Announcements', icon: Bell },
+    { id: 'polls', label: 'Polls', icon: BarChart2 },
   ];
 
   if (loading) {
@@ -114,7 +127,7 @@ export default function AdminDashboardPage() {
       <aside className="fixed left-0 top-0 bottom-0 w-64 bg-secondary-900 border-r border-secondary-700/60 hidden lg:block">
         <div className="p-6">
           <div className="flex items-center gap-2 mb-8">
-            <img src="/files_10604804-2026-06-17T04-45-00-187Z-unnamed.png" className="w-8 h-8 object-contain rounded" alt="AI Club" />
+            <img src="/images/WhatsApp_Image_2026-06-03_at_5.22.16_PM.jpeg" className="w-8 h-8 object-contain rounded" alt="AI Club" />
             <span className="font-display text-xl font-bold text-white">AI Centre</span>
           </div>
 
@@ -166,7 +179,7 @@ export default function AdminDashboardPage() {
         <header className="lg:hidden fixed top-0 left-0 right-0 bg-secondary-900 border-b border-secondary-700/60 z-40">
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-2">
-              <img src="/files_10604804-2026-06-17T04-45-00-187Z-unnamed.png" className="w-6 h-6 object-contain rounded" alt="AI Club" />
+              <img src="/images/WhatsApp_Image_2026-06-03_at_5.22.16_PM.jpeg" className="w-6 h-6 object-contain rounded" alt="AI Club" />
               <span className="font-display text-lg font-bold text-white">Admin</span>
             </div>
             <button onClick={signOut} className="p-2 text-secondary-400 hover:text-white">
@@ -292,6 +305,17 @@ export default function AdminDashboardPage() {
           {activeTab === 'announcements' && (
             <AnnouncementManagement
               announcements={announcements}
+              profileId={profile!.id}
+              onUpdate={fetchAdminData}
+            />
+          )}
+
+          {/* Polls Tab */}
+          {activeTab === 'polls' && (
+            <PollManagement
+              polls={polls}
+              pollOptions={pollOptions}
+              pollVotes={pollVotes}
               profileId={profile!.id}
               onUpdate={fetchAdminData}
             />
@@ -2038,6 +2062,251 @@ function ClassNotesManagement({
             </div>
           )}
         </>
+      )}
+    </div>
+  );
+}
+
+// Poll Management Component
+function PollManagement({
+  polls,
+  pollOptions,
+  pollVotes,
+  profileId,
+  onUpdate,
+}: {
+  polls: Poll[];
+  pollOptions: PollOption[];
+  pollVotes: PollVote[];
+  profileId: string;
+  onUpdate: () => void;
+}) {
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState<Poll | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ question: '', description: '', is_active: true, allow_multiple_votes: false });
+  const [optionInputs, setOptionInputs] = useState<string[]>(['', '']);
+
+  function resetForm() {
+    setForm({ question: '', description: '', is_active: true, allow_multiple_votes: false });
+    setOptionInputs(['', '']);
+  }
+
+  function openCreate() {
+    resetForm();
+    setEditing(null);
+    setShowModal(true);
+  }
+
+  function openEdit(poll: Poll) {
+    setForm({ question: poll.question, description: poll.description || '', is_active: poll.is_active, allow_multiple_votes: poll.allow_multiple_votes });
+    const opts = pollOptions.filter((o) => o.poll_id === poll.id).sort((a, b) => a.display_order - b.display_order);
+    setOptionInputs(opts.length >= 2 ? opts.map((o) => o.option_text) : ['', '']);
+    setEditing(poll);
+    setShowModal(true);
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    const validOptions = optionInputs.map((o) => o.trim()).filter(Boolean);
+    if (validOptions.length < 2) return;
+    setSaving(true);
+    try {
+      if (editing) {
+        const { error } = await supabase.from('polls').update({
+          question: form.question,
+          description: form.description || null,
+          is_active: form.is_active,
+          allow_multiple_votes: form.allow_multiple_votes,
+          updated_at: new Date().toISOString(),
+        }).eq('id', editing.id);
+        if (error) throw error;
+        await supabase.from('poll_options').delete().eq('poll_id', editing.id);
+        await supabase.from('poll_options').insert(
+          validOptions.map((text, i) => ({ poll_id: editing.id, option_text: text, display_order: i }))
+        );
+      } else {
+        const { data: newPoll, error } = await supabase.from('polls').insert({
+          question: form.question,
+          description: form.description || null,
+          is_active: form.is_active,
+          allow_multiple_votes: form.allow_multiple_votes,
+          created_by: profileId,
+        }).select().single();
+        if (error) throw error;
+        await supabase.from('poll_options').insert(
+          validOptions.map((text, i) => ({ poll_id: newPoll.id, option_text: text, display_order: i }))
+        );
+      }
+      setShowModal(false);
+      resetForm();
+      onUpdate();
+    } catch (err) {
+      console.error('Error saving poll:', err);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleToggleActive(poll: Poll) {
+    await supabase.from('polls').update({ is_active: !poll.is_active, updated_at: new Date().toISOString() }).eq('id', poll.id);
+    onUpdate();
+  }
+
+  async function handleDelete(poll: Poll) {
+    if (!confirm(`Delete poll "${poll.question}"? All votes will be lost.`)) return;
+    await supabase.from('polls').delete().eq('id', poll.id);
+    onUpdate();
+  }
+
+  const inputCls = 'w-full bg-secondary-900 border border-secondary-700 rounded-lg px-4 py-2.5 text-white placeholder-secondary-500 focus:border-primary-500 focus:outline-none transition-colors';
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-white">Polls</h1>
+          <p className="text-secondary-400 mt-1">Create polls for students to vote on.</p>
+        </div>
+        <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium transition-colors">
+          <Plus className="w-4 h-4" /> New Poll
+        </button>
+      </div>
+
+      {/* Create / Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-secondary-800 border border-secondary-700 rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-display text-xl font-bold text-white">{editing ? 'Edit Poll' : 'New Poll'}</h2>
+              <button onClick={() => setShowModal(false)} className="text-secondary-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <form onSubmit={handleSave} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-secondary-300 mb-1.5">Question *</label>
+                <input type="text" value={form.question} onChange={(e) => setForm({ ...form, question: e.target.value })} required placeholder="What do you want to ask?" className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-secondary-300 mb-1.5">Description <span className="text-secondary-500">(optional)</span></label>
+                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} placeholder="Add context..." className={`${inputCls} resize-none`} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-secondary-300 mb-2">Options * <span className="text-secondary-500">(minimum 2)</span></label>
+                <div className="space-y-2">
+                  {optionInputs.map((val, i) => (
+                    <div key={i} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={val}
+                        onChange={(e) => {
+                          const next = [...optionInputs];
+                          next[i] = e.target.value;
+                          setOptionInputs(next);
+                        }}
+                        placeholder={`Option ${i + 1}`}
+                        className={inputCls}
+                      />
+                      {optionInputs.length > 2 && (
+                        <button type="button" onClick={() => setOptionInputs(optionInputs.filter((_, j) => j !== i))} className="p-2.5 text-secondary-400 hover:text-red-400 transition-colors">
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button type="button" onClick={() => setOptionInputs([...optionInputs, ''])} className="mt-2 flex items-center gap-1.5 text-sm text-primary-400 hover:text-primary-300 transition-colors">
+                  <Plus className="w-4 h-4" /> Add option
+                </button>
+              </div>
+              <div className="flex items-center gap-3 py-1 border-t border-secondary-700/50 pt-4">
+                <div>
+                  <p className="text-sm font-medium text-secondary-300">Active (visible to students)</p>
+                </div>
+                <button type="button" onClick={() => setForm({ ...form, is_active: !form.is_active })} className="ml-auto">
+                  {form.is_active
+                    ? <ToggleRight className="w-8 h-8 text-primary-400" />
+                    : <ToggleLeft className="w-8 h-8 text-secondary-500" />}
+                </button>
+              </div>
+              <div className="flex items-center gap-3 py-1">
+                <div>
+                  <p className="text-sm font-medium text-secondary-300">Allow multiple votes</p>
+                  <p className="text-xs text-secondary-500 mt-0.5">Students can vote more than once</p>
+                </div>
+                <button type="button" onClick={() => setForm({ ...form, allow_multiple_votes: !form.allow_multiple_votes })} className="ml-auto">
+                  {form.allow_multiple_votes
+                    ? <ToggleRight className="w-8 h-8 text-primary-400" />
+                    : <ToggleLeft className="w-8 h-8 text-secondary-500" />}
+                </button>
+              </div>
+              <button type="submit" disabled={saving || optionInputs.filter((o) => o.trim()).length < 2} className="w-full py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+                {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : editing ? 'Update Poll' : 'Create Poll'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Poll List */}
+      {polls.length === 0 ? (
+        <div className="text-center py-12 text-secondary-400">
+          <BarChart2 className="w-12 h-12 mx-auto mb-3 opacity-40" />
+          <p>No polls yet. Click "New Poll" to create one.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {polls.map((poll) => {
+            const options = pollOptions.filter((o) => o.poll_id === poll.id).sort((a, b) => a.display_order - b.display_order);
+            const votes = pollVotes.filter((v) => v.poll_id === poll.id);
+            const totalVotes = votes.length;
+            return (
+              <div key={poll.id} className="p-6 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
+                <div className="flex items-start justify-between gap-4 mb-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-1 flex-wrap">
+                      <h3 className="text-white font-semibold text-lg">{poll.question}</h3>
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${poll.is_active ? 'bg-green-500/20 text-green-400' : 'bg-secondary-700 text-secondary-400'}`}>
+                        {poll.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                      {poll.allow_multiple_votes && (
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400">
+                          Multi-vote
+                        </span>
+                      )}
+                    </div>
+                    {poll.description && <p className="text-secondary-400 text-sm">{poll.description}</p>}
+                    <p className="text-secondary-500 text-xs mt-1">{totalVotes} vote{totalVotes !== 1 ? 's' : ''} · Created {format(parseISO(poll.created_at), 'MMM d, yyyy')}</p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => handleToggleActive(poll)} className="p-2 text-secondary-400 hover:text-primary-400 transition-colors" title={poll.is_active ? 'Deactivate' : 'Activate'}>
+                      {poll.is_active ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+                    </button>
+                    <button onClick={() => openEdit(poll)} className="p-2 text-secondary-400 hover:text-primary-400 transition-colors"><Edit className="w-5 h-5" /></button>
+                    <button onClick={() => handleDelete(poll)} className="p-2 text-secondary-400 hover:text-red-400 transition-colors"><Trash2 className="w-5 h-5" /></button>
+                  </div>
+                </div>
+                {/* Vote bars */}
+                <div className="space-y-2.5">
+                  {options.map((opt) => {
+                    const count = votes.filter((v) => v.option_id === opt.id).length;
+                    const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+                    return (
+                      <div key={opt.id}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-secondary-300 text-sm">{opt.option_text}</span>
+                          <span className="text-secondary-400 text-xs">{count} ({pct}%)</span>
+                        </div>
+                        <div className="h-2 bg-secondary-700 rounded-full overflow-hidden">
+                          <div className="h-full bg-primary-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

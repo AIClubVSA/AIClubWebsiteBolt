@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Project, Message, Announcement, Class, Note, Attendance, ClassNoteFile } from '../types/database';
+import { Project, Message, Announcement, Class, Note, Attendance, ClassNoteFile, Poll, PollOption, PollVote } from '../types/database';
 import {
   LayoutDashboard,
   FolderGit,
@@ -23,10 +23,11 @@ import {
   File,
   Download,
   ExternalLink,
+  BarChart2,
 } from 'lucide-react';
 import { format, parseISO, isToday, isTomorrow, isThisWeek } from 'date-fns';
 
-type TabType = 'overview' | 'projects' | 'messages' | 'planner' | 'notes' | 'announcements';
+type TabType = 'overview' | 'projects' | 'messages' | 'planner' | 'notes' | 'announcements' | 'polls';
 
 export default function DashboardPage() {
   const { profile, signOut } = useAuth();
@@ -46,6 +47,12 @@ export default function DashboardPage() {
   const [noteDraft, setNoteDraft] = useState('');
   const [noteSaving, setNoteSaving] = useState(false);
   const [classNoteFiles, setClassNoteFiles] = useState<ClassNoteFile[]>([]);
+  const [polls, setPolls] = useState<Poll[]>([]);
+  const [pollOptions, setPollOptions] = useState<PollOption[]>([]);
+  const [myVotes, setMyVotes] = useState<PollVote[]>([]);
+  const [votingPollId, setVotingPollId] = useState<string | null>(null);
+  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
+  const [pollSubmitting, setPollSubmitting] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -55,7 +62,7 @@ export default function DashboardPage() {
 
   async function fetchDashboardData() {
     try {
-      const [projectsRes, messagesRes, announcementsRes, classesRes, adminsRes, notesRes, attendanceRes, classNoteFilesRes] = await Promise.all([
+      const [projectsRes, messagesRes, announcementsRes, classesRes, adminsRes, notesRes, attendanceRes, classNoteFilesRes, pollsRes, pollOptionsRes, myVotesRes] = await Promise.all([
         supabase.from('projects').select('*').eq('student_id', profile!.id).order('created_at', { ascending: false }),
         supabase.from('messages').select('*').or(`sender_id.eq.${profile!.id},receiver_id.eq.${profile!.id}`).order('created_at', { ascending: false }),
         supabase.from('announcements').select('*').order('created_at', { ascending: false }),
@@ -64,6 +71,9 @@ export default function DashboardPage() {
         supabase.from('notes').select('*').eq('student_id', profile!.id),
         supabase.from('attendance').select('*').eq('student_id', profile!.id),
         supabase.from('class_notes_files').select('*').order('created_at', { ascending: false }),
+        supabase.from('polls').select('*').eq('is_active', true).order('created_at', { ascending: false }),
+        supabase.from('poll_options').select('*').order('display_order', { ascending: true }),
+        supabase.from('poll_votes').select('*').eq('student_id', profile!.id),
       ]);
 
       setProjects(projectsRes.data || []);
@@ -74,6 +84,9 @@ export default function DashboardPage() {
       setNotes(notesRes.data || []);
       setAttendance(attendanceRes.data || []);
       setClassNoteFiles(classNoteFilesRes.data || []);
+      setPolls(pollsRes.data || []);
+      setPollOptions(pollOptionsRes.data || []);
+      setMyVotes(myVotesRes.data || []);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -117,13 +130,16 @@ export default function DashboardPage() {
     return classDate >= new Date() && isThisWeek(classDate, { weekStartsOn: 1 });
   });
 
+  const unvotedPollCount = polls.filter((p) => !myVotes.some((v) => v.poll_id === p.id)).length;
+
   const sidebarItems = [
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    { id: 'projects', label: 'My Projects', icon: FolderGit },
-    { id: 'messages', label: 'Messages', icon: MessageSquare },
-    { id: 'planner', label: 'Class Planner', icon: CalendarDays },
-    { id: 'notes', label: 'Notes', icon: StickyNote },
-    { id: 'announcements', label: 'Announcements', icon: Bell },
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard, badge: 0 },
+    { id: 'projects', label: 'My Projects', icon: FolderGit, badge: 0 },
+    { id: 'messages', label: 'Messages', icon: MessageSquare, badge: 0 },
+    { id: 'planner', label: 'Class Planner', icon: CalendarDays, badge: 0 },
+    { id: 'notes', label: 'Notes', icon: StickyNote, badge: 0 },
+    { id: 'announcements', label: 'Announcements', icon: Bell, badge: 0 },
+    { id: 'polls', label: 'Polls', icon: BarChart2, badge: unvotedPollCount },
   ];
 
   if (loading) {
@@ -140,7 +156,7 @@ export default function DashboardPage() {
       <aside className="fixed left-0 top-0 bottom-0 w-64 bg-secondary-900 border-r border-secondary-700/60 hidden lg:block">
         <div className="p-6">
           <div className="flex items-center gap-2 mb-8">
-            <img src="/files_10604804-2026-06-17T04-45-00-187Z-unnamed.png" className="w-8 h-8 object-contain rounded" alt="AI Club" />
+            <img src="/images/WhatsApp_Image_2026-06-03_at_5.22.16_PM.jpeg" className="w-8 h-8 object-contain rounded" alt="AI Club" />
             <span className="font-display text-xl font-bold text-white">AI Centre</span>
           </div>
 
@@ -155,7 +171,14 @@ export default function DashboardPage() {
                     : 'text-secondary-400 hover:text-white hover:bg-secondary-700/50'
                 }`}
               >
-                <item.icon className="w-5 h-5" />
+                <div className="relative">
+                  <item.icon className="w-5 h-5" />
+                  {item.badge > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-red-500 rounded-full border border-secondary-900 flex items-center justify-center">
+                      <span className="text-white text-[8px] font-bold leading-none">{item.badge > 9 ? '9+' : item.badge}</span>
+                    </span>
+                  )}
+                </div>
                 <span className="font-medium">{item.label}</span>
               </button>
             ))}
@@ -190,7 +213,7 @@ export default function DashboardPage() {
         <header className="lg:hidden fixed top-0 left-0 right-0 bg-secondary-900 border-b border-secondary-700/60 z-40">
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-2">
-              <img src="/files_10604804-2026-06-17T04-45-00-187Z-unnamed.png" className="w-6 h-6 object-contain rounded" alt="AI Club" />
+              <img src="/images/WhatsApp_Image_2026-06-03_at_5.22.16_PM.jpeg" className="w-6 h-6 object-contain rounded" alt="AI Club" />
               <span className="font-display text-lg font-bold text-white">AI Centre</span>
             </div>
             <button
@@ -211,7 +234,12 @@ export default function DashboardPage() {
                     : 'text-secondary-400 hover:text-white'
                 }`}
               >
-                <item.icon className="w-4 h-4" />
+                <div className="relative">
+                  <item.icon className="w-4 h-4" />
+                  {item.badge > 0 && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-secondary-900" />
+                  )}
+                </div>
                 <span className="text-sm font-medium">{item.label}</span>
               </button>
             ))}
@@ -314,6 +342,35 @@ export default function DashboardPage() {
                             </p>
                           </div>
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Pending Polls */}
+              {unvotedPollCount > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <h2 className="font-display text-lg font-semibold text-white">Polls Awaiting Your Vote</h2>
+                    <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-full text-xs font-medium">{unvotedPollCount}</span>
+                  </div>
+                  <div className="space-y-3">
+                    {polls.filter((p) => !myVotes.some((v) => v.poll_id === p.id)).slice(0, 2).map((poll) => (
+                      <div key={poll.id} className="p-4 bg-secondary-800/50 border border-amber-500/20 rounded-xl flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+                          <BarChart2 className="w-5 h-5 text-amber-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-medium truncate">{poll.question}</p>
+                          <p className="text-secondary-400 text-xs mt-0.5">Your vote is needed</p>
+                        </div>
+                        <button
+                          onClick={() => setActiveTab('polls')}
+                          className="shrink-0 px-3 py-1.5 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          Vote Now
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -799,6 +856,154 @@ export default function DashboardPage() {
                   ))
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Polls Tab */}
+          {activeTab === 'polls' && (
+            <div className="space-y-6">
+              <div>
+                <h1 className="font-display text-2xl font-bold text-white">Polls</h1>
+                <p className="text-secondary-400 mt-1">Vote on polls created by your mentors.</p>
+              </div>
+
+              {polls.length === 0 ? (
+                <div className="text-center py-16 text-secondary-400">
+                  <BarChart2 className="w-12 h-12 mx-auto mb-3 opacity-40" />
+                  <p>No active polls right now. Check back later!</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {polls.map((poll) => {
+                    const options = pollOptions.filter((o) => o.poll_id === poll.id).sort((a, b) => a.display_order - b.display_order);
+                    const myPollVotes = myVotes.filter((v) => v.poll_id === poll.id);
+                    const hasVoted = myPollVotes.length > 0;
+                    const myLastVote = myPollVotes[myPollVotes.length - 1];
+                    const canVoteAgain = poll.allow_multiple_votes;
+                    const showVotingUI = !hasVoted || canVoteAgain;
+                    const isExpanding = votingPollId === poll.id;
+
+                    return (
+                      <div key={poll.id} className="p-6 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
+                        <div className="flex items-start gap-3 mb-4">
+                          <div className="w-10 h-10 rounded-xl bg-primary-500/10 flex items-center justify-center shrink-0">
+                            <BarChart2 className="w-5 h-5 text-primary-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-white font-semibold text-lg leading-tight">{poll.question}</h3>
+                            {poll.description && <p className="text-secondary-400 text-sm mt-1">{poll.description}</p>}
+                          </div>
+                          <div className="flex flex-col items-end gap-1.5 shrink-0">
+                            {!hasVoted && (
+                              <span className="px-2.5 py-1 bg-amber-500/20 text-amber-400 rounded-full text-xs font-medium">New</span>
+                            )}
+                            {canVoteAgain && (
+                              <span className="px-2.5 py-1 bg-blue-500/20 text-blue-400 rounded-full text-xs font-medium">Multi-vote</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* For multi-vote polls that have been voted on: show last vote status */}
+                        {hasVoted && canVoteAgain && (
+                          <div className="mb-3 flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                            <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />
+                            <p className="text-blue-300 text-sm">
+                              Last vote: <span className="font-medium text-white">{options.find((o) => o.id === myLastVote?.option_id)?.option_text}</span>
+                              <span className="text-blue-400 ml-2">· {myPollVotes.length} vote{myPollVotes.length !== 1 ? 's' : ''} cast</span>
+                            </p>
+                          </div>
+                        )}
+
+                        {!showVotingUI ? (
+                          /* Read-only results for single-vote polls */
+                          <div className="space-y-2">
+                            {options.map((opt) => {
+                              const isMyChoice = opt.id === myLastVote?.option_id;
+                              return (
+                                <div
+                                  key={opt.id}
+                                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 ${
+                                    isMyChoice
+                                      ? 'border-primary-500 bg-primary-500/10'
+                                      : 'border-secondary-700/30 bg-secondary-900/30'
+                                  }`}
+                                >
+                                  <div className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${isMyChoice ? 'border-primary-500' : 'border-secondary-600'}`}>
+                                    {isMyChoice && <div className="w-2 h-2 rounded-full bg-primary-500" />}
+                                  </div>
+                                  <span className={`text-sm font-medium ${isMyChoice ? 'text-white' : 'text-secondary-400'}`}>{opt.option_text}</span>
+                                  {isMyChoice && <CheckCircle2 className="w-4 h-4 text-primary-400 ml-auto shrink-0" />}
+                                </div>
+                              );
+                            })}
+                            <p className="text-secondary-500 text-xs mt-1">Your vote has been recorded.</p>
+                          </div>
+                        ) : (
+                          /* Voting UI (first-time or multi-vote re-vote) */
+                          <div className="space-y-2">
+                            {options.map((opt) => {
+                              const isSelected = selectedOptionId === opt.id && isExpanding;
+                              return (
+                                <button
+                                  key={opt.id}
+                                  onClick={() => {
+                                    setVotingPollId(poll.id);
+                                    setSelectedOptionId(opt.id);
+                                  }}
+                                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all ${
+                                    isSelected
+                                      ? 'border-primary-500 bg-primary-500/10 text-white'
+                                      : 'border-secondary-700/50 bg-secondary-900/50 text-secondary-300 hover:border-secondary-600 hover:text-white'
+                                  }`}
+                                >
+                                  <div className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${isSelected ? 'border-primary-500' : 'border-secondary-600'}`}>
+                                    {isSelected && <div className="w-2 h-2 rounded-full bg-primary-500" />}
+                                  </div>
+                                  <span className="font-medium">{opt.option_text}</span>
+                                </button>
+                              );
+                            })}
+                            {isExpanding && selectedOptionId && (
+                              <button
+                                onClick={async () => {
+                                  if (!profile || !selectedOptionId) return;
+                                  setPollSubmitting(true);
+                                  try {
+                                    const { error } = await supabase.from('poll_votes').insert({
+                                      poll_id: poll.id,
+                                      option_id: selectedOptionId,
+                                      student_id: profile.id,
+                                    });
+                                    if (!error) {
+                                      setSelectedOptionId(null);
+                                      setVotingPollId(null);
+                                      fetchDashboardData();
+                                    }
+                                  } catch (err) {
+                                    console.error('Error submitting vote:', err);
+                                  } finally {
+                                    setPollSubmitting(false);
+                                  }
+                                }}
+                                disabled={pollSubmitting}
+                                className="w-full mt-1 py-2.5 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                              >
+                                {pollSubmitting ? (
+                                  <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
+                                ) : canVoteAgain && hasVoted ? (
+                                  'Vote Again'
+                                ) : (
+                                  'Submit Vote'
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -75,3 +75,30 @@ export interface ClassNoteFile {
   uploaded_by: string;
   created_at: string;
 }
+
+export interface Poll {
+  id: string;
+  question: string;
+  description?: string;
+  is_active: boolean;
+  allow_multiple_votes: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PollOption {
+  id: string;
+  poll_id: string;
+  option_text: string;
+  display_order: number;
+  created_at: string;
+}
+
+export interface PollVote {
+  id: string;
+  poll_id: string;
+  option_id: string;
+  student_id: string;
+  created_at: string;
+}
