@@ -6,6 +6,7 @@ export interface Profile {
   id: string;
   email: string;
   full_name: string;
+  phone?: string;
   role: 'student' | 'admin';
   avatar_url?: string;
   created_at: string;
@@ -21,6 +22,9 @@ interface AuthContextType {
   clearAuthError: () => void;
   sendSignInOtp: (email: string) => Promise<{ error: string | null }>;
   verifySignInOtp: (email: string, token: string) => Promise<{ error: string | null }>;
+  sendPhoneOtp: (phone: string) => Promise<{ error: string | null }>;
+  verifyPhoneOtp: (phone: string, token: string) => Promise<{ error: string | null }>;
+  signInWithPassword: (email: string, password: string) => Promise<{ error: string | null }>;
   sendSignUpOtp: (email: string) => Promise<{ error: string | null }>;
   verifySignUpOtp: (email: string, token: string, fullName: string, password: string) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
@@ -176,6 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await fetchProfile(sess.user.id);
         } else {
           setProfile(null);
+          setLoading(false);
         }
       }
     );
@@ -204,6 +209,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function verifySignInOtp(email: string, token: string): Promise<{ error: string | null }> {
     const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
     if (error) return { error: error.message };
+    return { error: null };
+  }
+
+  async function sendPhoneOtp(phone: string): Promise<{ error: string | null }> {
+    const { error } = await supabase.auth.signInWithOtp({
+      phone,
+      options: { shouldCreateUser: false },
+    });
+    if (error) {
+      if (error.message.toLowerCase().includes('user not found') ||
+          error.message.toLowerCase().includes('no user')) {
+        return { error: 'No account found with that phone number.' };
+      }
+      return { error: error.message };
+    }
+    return { error: null };
+  }
+
+  async function verifyPhoneOtp(phone: string, token: string): Promise<{ error: string | null }> {
+    const { error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' });
+    if (error) return { error: error.message };
+    return { error: null };
+  }
+
+  async function signInWithPassword(email: string, password: string): Promise<{ error: string | null }> {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      if (error.message.toLowerCase().includes('invalid login credentials')) {
+        return { error: 'Invalid email or password.' };
+      }
+      return { error: error.message };
+    }
     return { error: null };
   }
 
@@ -277,6 +314,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{
       user, profile, session, loading, authError, clearAuthError,
       sendSignInOtp, verifySignInOtp,
+      sendPhoneOtp, verifyPhoneOtp,
+      signInWithPassword,
       sendSignUpOtp, verifySignUpOtp,
       signInWithGoogle,
       signOut,

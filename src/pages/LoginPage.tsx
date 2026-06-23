@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Mail, Loader2, AlertCircle, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { Mail, Phone, Lock, Loader2, AlertCircle, ArrowLeft, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 
-const OTP_LENGTH = 8;
+const OTP_LENGTH = 6;
 const EMPTY_OTP = Array(OTP_LENGTH).fill('');
 
-type Step = 'email' | 'otp';
+type SignInMethod = 'email-otp' | 'phone-otp' | 'password';
+type Step = 'method' | 'otp' | 'password';
 
 function GoogleIcon() {
   return (
@@ -20,18 +21,27 @@ function GoogleIcon() {
 }
 
 export default function LoginPage() {
-  const [step, setStep] = useState<Step>('email');
+  const [method, setMethod] = useState<SignInMethod>('email-otp');
+  const [step, setStep] = useState<Step>('method');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
   const [otp, setOtp] = useState<string[]>(EMPTY_OTP);
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const { sendSignInOtp, verifySignInOtp, signInWithGoogle, authError, clearAuthError } = useAuth();
+  const {
+    sendSignInOtp, verifySignInOtp,
+    sendPhoneOtp, verifyPhoneOtp,
+    signInWithPassword,
+    signInWithGoogle,
+    authError, clearAuthError,
+  } = useAuth();
   const navigate = useNavigate();
 
-  // Show OAuth errors from context
   useEffect(() => {
     if (authError) {
       setError(authError);
@@ -54,16 +64,31 @@ export default function LoginPage() {
       setError(error);
       setGoogleLoading(false);
     }
-    // On success, the browser redirects — no need to setLoading(false)
   };
 
-  const handleEmailSubmit = async (e: React.FormEvent) => {
+  const handleMethodSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (method === 'password') {
+      setLoading(true);
+      const { error } = await signInWithPassword(email, password);
+      setLoading(false);
+      if (error) { setError(error); return; }
+      navigate('/dashboard');
+      return;
+    }
+
     setLoading(true);
-    const { error } = await sendSignInOtp(email);
-    setLoading(false);
-    if (error) { setError(error); return; }
+    if (method === 'email-otp') {
+      const { error } = await sendSignInOtp(email);
+      setLoading(false);
+      if (error) { setError(error); return; }
+    } else if (method === 'phone-otp') {
+      const { error } = await sendPhoneOtp(phone);
+      setLoading(false);
+      if (error) { setError(error); return; }
+    }
     setStep('otp');
     startCooldown();
     setTimeout(() => otpRefs.current[0]?.focus(), 50);
@@ -94,7 +119,12 @@ export default function LoginPage() {
   const verifyCode = async (code: string) => {
     setError(null);
     setLoading(true);
-    const { error } = await verifySignInOtp(email, code);
+    let error: string | null;
+    if (method === 'email-otp') {
+      error = (await verifySignInOtp(email, code)).error;
+    } else {
+      error = (await verifyPhoneOtp(phone, code)).error;
+    }
     setLoading(false);
     if (error) {
       setError(error);
@@ -114,13 +144,21 @@ export default function LoginPage() {
     if (resendCooldown > 0) return;
     setError(null);
     setLoading(true);
-    const { error } = await sendSignInOtp(email);
-    setLoading(false);
-    if (error) { setError(error); return; }
+    if (method === 'email-otp') {
+      const { error } = await sendSignInOtp(email);
+      setLoading(false);
+      if (error) { setError(error); return; }
+    } else {
+      const { error } = await sendPhoneOtp(phone);
+      setLoading(false);
+      if (error) { setError(error); return; }
+    }
     setOtp([...EMPTY_OTP]);
     setTimeout(() => otpRefs.current[0]?.focus(), 50);
     startCooldown();
   };
+
+  const inputCls = 'w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white placeholder-gray-600 focus:border-cyan-500/50 focus:outline-none transition-colors';
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center px-4">
@@ -131,12 +169,12 @@ export default function LoginPage() {
             <span className="text-xl font-bold text-white">AI Centre</span>
           </Link>
           <h1 className="text-3xl font-bold text-white mb-2">
-            {step === 'email' ? 'Welcome back' : 'Check your email'}
+            {step === 'otp' ? 'Check your ' + (method === 'email-otp' ? 'email' : 'phone') : 'Welcome back'}
           </h1>
           <p className="text-gray-400 text-sm">
-            {step === 'email'
-              ? 'Sign in to access your dashboard'
-              : `We sent an 8-digit code to ${email}`}
+            {step === 'otp'
+              ? `We sent a ${OTP_LENGTH}-digit code to ${method === 'email-otp' ? email : phone}`
+              : 'Sign in to access your dashboard'}
           </p>
         </div>
 
@@ -148,7 +186,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          {step === 'email' && (
+          {step === 'method' && (
             <>
               {/* Google Sign In */}
               <button
@@ -170,28 +208,112 @@ export default function LoginPage() {
                   <div className="w-full border-t border-white/10" />
                 </div>
                 <div className="relative flex justify-center">
-                  <span className="bg-[#0a0a0f] px-3 text-xs text-gray-500 uppercase tracking-wider">or continue with email</span>
+                  <span className="bg-[#0a0a0f] px-3 text-xs text-gray-500 uppercase tracking-wider">or sign in with</span>
                 </div>
               </div>
 
-              <form onSubmit={handleEmailSubmit} className="space-y-5">
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                    <input
-                      id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                      required autoFocus
-                      className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white placeholder-gray-600 focus:border-cyan-500/50 focus:outline-none transition-colors"
-                      placeholder="you@example.com"
-                    />
+              {/* Sign-in method tabs */}
+              <div className="flex gap-1 mb-5 p-1 bg-white/5 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setMethod('email-otp')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                    method === 'email-otp' ? 'bg-cyan-500/20 text-cyan-400' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <Mail className="w-4 h-4" /> Email OTP
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMethod('phone-otp')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                    method === 'phone-otp' ? 'bg-cyan-500/20 text-cyan-400' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <Phone className="w-4 h-4" /> Phone OTP
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMethod('password')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                    method === 'password' ? 'bg-cyan-500/20 text-cyan-400' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <Lock className="w-4 h-4" /> Password
+                </button>
+              </div>
+
+              <form onSubmit={handleMethodSubmit} className="space-y-5">
+                {(method === 'email-otp' || method === 'password') && (
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                      <input
+                        id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                        required autoFocus={method === 'email-otp'}
+                        className={inputCls}
+                        placeholder="you@example.com"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {method === 'phone-otp' && (
+                  <div>
+                    <label htmlFor="phone" className="block text-sm font-medium text-gray-300 mb-2">
+                      Phone Number
+                    </label>
+                    <div className="relative">
+                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                      <input
+                        id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
+                        required autoFocus
+                        className={inputCls}
+                        placeholder="+91 9876543210"
+                      />
+                    </div>
+                    <p className="text-gray-500 text-xs mt-2">Enter the phone number registered with your account.</p>
+                  </div>
+                )}
+
+                {method === 'password' && (
+                  <div>
+                    <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                      <input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        autoFocus
+                        className={`${inputCls} pr-12`}
+                        placeholder="Enter your password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                      >
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <button type="submit" disabled={loading || googleLoading}
                   className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold py-3 rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all disabled:opacity-50">
-                  {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Sending code...</> : 'Send verification code'}
+                  {loading ? (
+                    <><Loader2 className="w-5 h-5 animate-spin" /> {method === 'password' ? 'Signing in...' : 'Sending code...'}</>
+                  ) : (
+                    method === 'password' ? 'Sign In' : 'Send verification code'
+                  )}
                 </button>
               </form>
             </>
@@ -201,9 +323,9 @@ export default function LoginPage() {
             <form onSubmit={handleOtpSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-4 text-center">
-                  Enter the 8-digit code
+                  Enter the {OTP_LENGTH}-digit code
                 </label>
-                <div className="flex gap-1.5 justify-center" onPaste={handleOtpPaste}>
+                <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
                   {otp.map((digit, i) => (
                     <input
                       key={i}
@@ -211,8 +333,7 @@ export default function LoginPage() {
                       type="text" inputMode="numeric" maxLength={1} value={digit}
                       onChange={(e) => handleOtpChange(i, e.target.value)}
                       onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                      className="w-10 h-13 text-center text-xl font-bold bg-white/5 border border-white/10 rounded-xl text-white focus:border-cyan-500 focus:outline-none transition-colors"
-                      style={{ height: '3.25rem' }}
+                      className="w-12 h-14 text-center text-xl font-bold bg-white/5 border border-white/10 rounded-xl text-white focus:border-cyan-500 focus:outline-none transition-colors"
                     />
                   ))}
                 </div>
@@ -238,9 +359,9 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <button type="button" onClick={() => { setStep('email'); setOtp([...EMPTY_OTP]); setError(null); }}
+              <button type="button" onClick={() => { setStep('method'); setOtp([...EMPTY_OTP]); setError(null); }}
                 className="w-full flex items-center justify-center gap-2 text-gray-500 hover:text-white text-sm transition-colors">
-                <ArrowLeft className="w-4 h-4" /> Change email
+                <ArrowLeft className="w-4 h-4" /> Change {method === 'email-otp' ? 'email' : 'phone'}
               </button>
             </form>
           )}

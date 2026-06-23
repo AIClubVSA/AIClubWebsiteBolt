@@ -24,10 +24,13 @@ import {
   Download,
   ExternalLink,
   BarChart2,
+  Settings,
+  User,
+  ShieldCheck,
 } from 'lucide-react';
 import { format, parseISO, isToday, isTomorrow, isThisWeek } from 'date-fns';
 
-type TabType = 'overview' | 'projects' | 'messages' | 'planner' | 'notes' | 'announcements' | 'polls';
+type TabType = 'overview' | 'projects' | 'messages' | 'planner' | 'notes' | 'announcements' | 'polls' | 'settings';
 
 export default function DashboardPage() {
   const { profile, signOut } = useAuth();
@@ -140,6 +143,7 @@ export default function DashboardPage() {
     { id: 'notes', label: 'Notes', icon: StickyNote, badge: 0 },
     { id: 'announcements', label: 'Announcements', icon: Bell, badge: 0 },
     { id: 'polls', label: 'Polls', icon: BarChart2, badge: unvotedPollCount },
+    { id: 'settings', label: 'Settings', icon: Settings, badge: 0 },
   ];
 
   if (loading) {
@@ -1006,8 +1010,134 @@ export default function DashboardPage() {
               )}
             </div>
           )}
+
+          {/* Settings Tab */}
+          {activeTab === 'settings' && (
+            <SettingsTab profile={profile!} onUpdate={fetchDashboardData} />
+          )}
         </div>
       </main>
+    </div>
+  );
+}
+
+// Settings Tab Component
+function SettingsTab({ profile, onUpdate }: { profile: NonNullable<ReturnType<typeof useAuth>['profile']>; onUpdate: () => void }) {
+  const [form, setForm] = useState({ full_name: profile.full_name, email: profile.email, phone: profile.phone || '' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    setForm({ full_name: profile.full_name, email: profile.email, phone: profile.phone || '' });
+  }, [profile]);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    setSuccess(false);
+    try {
+      const updates: Record<string, string | null> = { full_name: form.full_name.trim() };
+      if (form.phone.trim()) updates.phone = form.phone.trim();
+      else updates.phone = null;
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', profile.id);
+      if (updateError) throw updateError;
+
+      if (form.email !== profile.email) {
+        const { error: authError } = await supabase.auth.updateUser({ email: form.email.trim() });
+        if (authError) throw new Error('Email update pending. Check your inbox to confirm the change.');
+      }
+
+      setSuccess(true);
+      onUpdate();
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save changes');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const inputCls = 'w-full bg-secondary-900 border border-secondary-700 rounded-xl px-4 py-3 text-white placeholder-secondary-500 focus:border-primary-500 focus:outline-none transition-colors';
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-display text-2xl font-bold text-white">Account Settings</h1>
+        <p className="text-secondary-400 mt-1">Update your profile information and credentials.</p>
+      </div>
+
+      <div className="bg-secondary-800/50 border border-secondary-700/50 rounded-2xl p-6 max-w-xl">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-12 h-12 rounded-full bg-primary-500/20 flex items-center justify-center">
+            <User className="w-6 h-6 text-primary-400" />
+          </div>
+          <div>
+            <p className="text-white font-semibold">{profile.full_name}</p>
+            <p className="text-secondary-400 text-sm">{profile.email}</p>
+          </div>
+        </div>
+
+        {error && (
+          <div className="mb-5 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">{error}</div>
+        )}
+        {success && (
+          <div className="mb-5 p-4 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 text-sm flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4" /> Settings saved successfully!
+          </div>
+        )}
+
+        <form onSubmit={handleSave} className="space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-secondary-300 mb-2">Full Name</label>
+            <input
+              type="text"
+              value={form.full_name}
+              onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+              required
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-secondary-300 mb-2">Email Address</label>
+            <input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              required
+              className={inputCls}
+            />
+            {form.email !== profile.email && (
+              <p className="text-yellow-400 text-xs mt-2 flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                You'll need to confirm the new email address before it takes effect.
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-secondary-300 mb-2">Phone Number</label>
+            <input
+              type="tel"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder="+91 9876543210"
+              className={inputCls}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={saving}
+            className="w-full py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-xl font-medium disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+          >
+            {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : <><Save className="w-4 h-4" /> Save Changes</>}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

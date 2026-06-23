@@ -330,19 +330,20 @@ export default function AdminDashboardPage() {
 function UserManagement({ students, onUpdate }: { students: Profile[]; onUpdate: () => void }) {
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addForm, setAddForm] = useState({ email: '', full_name: '' });
+  const [addForm, setAddForm] = useState({ email: '', full_name: '', phone: '' });
   const [addSaving, setAddSaving] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 
   const [editingStudent, setEditingStudent] = useState<Profile | null>(null);
-  const [editForm, setEditForm] = useState({ full_name: '', email: '' });
+  const [editForm, setEditForm] = useState({ full_name: '', email: '', phone: '' });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
   const filteredStudents = students.filter(
     (s) =>
       s.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      s.email.toLowerCase().includes(search.toLowerCase())
+      s.email.toLowerCase().includes(search.toLowerCase()) ||
+      (s.phone && s.phone.includes(search))
   );
 
   async function handleAddStudent(e: React.FormEvent) {
@@ -351,14 +352,14 @@ function UserManagement({ students, onUpdate }: { students: Profile[]; onUpdate:
     setAddError(null);
     try {
       const { data, error: fnError } = await supabase.functions.invoke('admin-manage-students', {
-        body: { action: 'create', email: addForm.email, full_name: addForm.full_name },
+        body: { action: 'create', email: addForm.email, full_name: addForm.full_name, phone: addForm.phone || null },
       });
       if (fnError || data?.error) {
         setAddError(data?.error || fnError?.message || 'Failed to add student');
         return;
       }
       setShowAddModal(false);
-      setAddForm({ email: '', full_name: '' });
+      setAddForm({ email: '', full_name: '', phone: '' });
       onUpdate();
     } catch {
       setAddError('An unexpected error occurred');
@@ -369,7 +370,7 @@ function UserManagement({ students, onUpdate }: { students: Profile[]; onUpdate:
 
   function openEdit(student: Profile) {
     setEditingStudent(student);
-    setEditForm({ full_name: student.full_name, email: student.email });
+    setEditForm({ full_name: student.full_name, email: student.email, phone: student.phone || '' });
     setEditError(null);
   }
 
@@ -384,6 +385,7 @@ function UserManagement({ students, onUpdate }: { students: Profile[]; onUpdate:
           action: 'update',
           userId: editingStudent.id,
           full_name: editForm.full_name,
+          phone: editForm.phone || null,
           email: editForm.email !== editingStudent.email ? editForm.email : undefined,
         },
       });
@@ -450,7 +452,7 @@ function UserManagement({ students, onUpdate }: { students: Profile[]; onUpdate:
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-display text-xl font-bold text-white">Add New Student</h2>
               <button
-                onClick={() => { setShowAddModal(false); setAddError(null); setAddForm({ email: '', full_name: '' }); }}
+                onClick={() => { setShowAddModal(false); setAddError(null); setAddForm({ email: '', full_name: '', phone: '' }); }}
                 className="text-secondary-400 hover:text-white transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -467,6 +469,10 @@ function UserManagement({ students, onUpdate }: { students: Profile[]; onUpdate:
               <div>
                 <label className="block text-sm font-medium text-secondary-300 mb-2">Email Address</label>
                 <input type="email" value={addForm.email} onChange={(e) => setAddForm({ ...addForm, email: e.target.value })} required placeholder="student@example.com" className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-secondary-300 mb-2">Phone Number <span className="text-secondary-500">(optional)</span></label>
+                <input type="tel" value={addForm.phone} onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })} placeholder="+91 9876543210" className={inputCls} />
               </div>
               <p className="text-secondary-500 text-xs">The student can sign in via OTP on the login page once their account is created.</p>
               <button type="submit" disabled={addSaving} className="w-full py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
@@ -502,6 +508,10 @@ function UserManagement({ students, onUpdate }: { students: Profile[]; onUpdate:
                   <p className="text-yellow-400 text-xs mt-1">Email will be updated — the student will need to use the new address to sign in.</p>
                 )}
               </div>
+              <div>
+                <label className="block text-sm font-medium text-secondary-300 mb-2">Phone Number</label>
+                <input type="tel" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} placeholder="+91 9876543210" className={inputCls} />
+              </div>
               <button type="submit" disabled={editSaving} className="w-full py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
                 {editSaving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : 'Save Changes'}
               </button>
@@ -516,6 +526,7 @@ function UserManagement({ students, onUpdate }: { students: Profile[]; onUpdate:
             <tr className="border-b border-secondary-700">
               <th className="text-left p-4 text-secondary-400 font-medium">Name</th>
               <th className="text-left p-4 text-secondary-400 font-medium hidden sm:table-cell">Email</th>
+              <th className="text-left p-4 text-secondary-400 font-medium hidden lg:table-cell">Phone</th>
               <th className="text-left p-4 text-secondary-400 font-medium hidden md:table-cell">Joined</th>
               <th className="p-4 w-24"></th>
             </tr>
@@ -532,6 +543,7 @@ function UserManagement({ students, onUpdate }: { students: Profile[]; onUpdate:
                   </div>
                 </td>
                 <td className="p-4 text-secondary-300 hidden sm:table-cell">{student.email}</td>
+                <td className="p-4 text-secondary-300 hidden lg:table-cell">{student.phone || '—'}</td>
                 <td className="p-4 text-secondary-300 hidden md:table-cell">
                   {format(parseISO(student.created_at), 'MMM d, yyyy')}
                 </td>

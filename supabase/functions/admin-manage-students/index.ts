@@ -40,7 +40,7 @@ Deno.serve(async (req: Request) => {
   if (!callerProfile || callerProfile.role !== "admin") return json({ error: "Forbidden" }, 403);
 
   const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-  const { action, email, full_name, userId } = await req.json();
+  const { action, email, full_name, phone, userId } = await req.json();
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
   if (action === "create") {
@@ -59,7 +59,7 @@ Deno.serve(async (req: Request) => {
     const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: normalizedEmail,
       email_confirm: true,
-      user_metadata: { full_name: full_name.trim() },
+      user_metadata: { full_name: full_name.trim(), phone: phone?.trim() || null },
     });
     if (createError) return json({ error: createError.message }, 400);
 
@@ -67,6 +67,7 @@ Deno.serve(async (req: Request) => {
       id: userData.user.id,
       email: normalizedEmail,
       full_name: full_name.trim(),
+      phone: phone?.trim() || null,
       role: "student",
     });
 
@@ -80,12 +81,13 @@ Deno.serve(async (req: Request) => {
   // ── UPDATE ──────────────────────────────────────────────────────────────────
   if (action === "update") {
     if (!userId) return json({ error: "userId is required" }, 400);
-    if (!full_name?.trim() && !email?.trim()) {
+    if (!full_name?.trim() && !email?.trim() && phone === undefined) {
       return json({ error: "Nothing to update" }, 400);
     }
 
-    const updates: Record<string, string> = {};
+    const updates: Record<string, string | null> = {};
     if (full_name?.trim()) updates.full_name = full_name.trim();
+    if (phone !== undefined) updates.phone = phone?.trim() || null;
     if (email?.trim()) updates.email = email.toLowerCase().trim();
 
     if (email?.trim()) {
