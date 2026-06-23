@@ -21,6 +21,10 @@ import {
   Menu,
   X,
   Clock,
+  Crown,
+  UserCog,
+  Code2,
+  Palette,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -161,6 +165,48 @@ export default function AboutUsPage() {
           <p className="reveal text-gray-400 text-lg leading-relaxed max-w-2xl mx-auto">
             The AI Centre at Vidyashilp Academy is a student-led club where curiosity meets creativity. We believe AI is a tool anyone can learn to use, and we're building a community that proves it.
           </p>
+        </div>
+      </section>
+
+      {/* Leadership Team */}
+      <section className="py-24 relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-500/5 to-transparent" aria-hidden="true" />
+        <div className="relative max-w-6xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <p className="reveal text-cyan-400 font-mono text-xs mb-3">LEADERSHIP</p>
+            <h2 className="reveal text-3xl md:text-4xl font-bold mb-5">
+              Meet the team <br />
+              <span className="gradient-text">behind the AI Centre.</span>
+            </h2>
+            <p className="reveal text-gray-400 max-w-xl mx-auto">
+              Our student leadership team drives the club's vision, organizes events, and ensures every member has the support they need to grow.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {[
+              { name: 'Sammit Basu', role: 'Founder and Head', icon: Crown, color: 'from-amber-500 to-orange-500', desc: 'Leading the vision and direction of the AI Centre' },
+              { name: 'Aarush M Reddy', role: 'Chairman', icon: UserCog, color: 'from-cyan-500 to-blue-500', desc: 'Overseeing club operations and strategic initiatives' },
+              { name: 'Aarav Nadig', role: 'Director', icon: Target, color: 'from-emerald-500 to-teal-500', desc: 'Guiding projects and member development' },
+              { name: 'Arav Prasad', role: 'Secretary', icon: BookOpen, color: 'from-violet-500 to-purple-500', desc: 'Managing communications and documentation' },
+              { name: 'Kushal Rao', role: 'Head of Communications', icon: Globe, color: 'from-blue-500 to-indigo-500', desc: 'Leading outreach and external engagement' },
+              { name: 'Rehaan Malhotra', role: 'Ethics Officer', icon: Heart, color: 'from-rose-500 to-pink-500', desc: 'Ensuring responsible AI practices in all projects' },
+              { name: 'Aarav Nitin Dev', role: 'Programmer and Developer', icon: Code2, color: 'from-green-500 to-emerald-500', desc: 'Building tools and technical infrastructure' },
+              { name: 'Harsh Mehra', role: 'Head of Design', icon: Palette, color: 'from-fuchsia-500 to-pink-500', desc: 'Crafting visual identity and user experiences' },
+            ].map((member) => {
+              const Icon = member.icon;
+              return (
+                <div key={member.name} className="reveal glass rounded-2xl p-6 text-center card-hover group">
+                  <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${member.color} flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300`}>
+                    <Icon className="w-7 h-7 text-white" />
+                  </div>
+                  <h3 className="text-white font-semibold text-base mb-1">{member.name}</h3>
+                  <p className="text-cyan-400 text-xs font-medium mb-2">{member.role}</p>
+                  <p className="text-gray-500 text-xs leading-relaxed">{member.desc}</p>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
 
