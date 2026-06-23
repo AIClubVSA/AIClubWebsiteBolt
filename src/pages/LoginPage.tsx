@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Mail, Phone, Lock, Loader2, AlertCircle, ArrowLeft, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Loader2, AlertCircle, ArrowLeft, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 
 const OTP_LENGTH = 6;
 const EMPTY_OTP = Array(OTP_LENGTH).fill('');
 
-type SignInMethod = 'email-otp' | 'phone-otp' | 'password';
-type Step = 'method' | 'otp' | 'password';
+type SignInMethod = 'email-otp' | 'password';
+type Step = 'method' | 'otp';
 
 function GoogleIcon() {
   return (
@@ -24,7 +24,6 @@ export default function LoginPage() {
   const [method, setMethod] = useState<SignInMethod>('email-otp');
   const [step, setStep] = useState<Step>('method');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState<string[]>(EMPTY_OTP);
   const [showPassword, setShowPassword] = useState(false);
@@ -35,7 +34,6 @@ export default function LoginPage() {
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const {
     sendSignInOtp, verifySignInOtp,
-    sendPhoneOtp, verifyPhoneOtp,
     signInWithPassword,
     signInWithGoogle,
     authError, clearAuthError,
@@ -80,15 +78,9 @@ export default function LoginPage() {
     }
 
     setLoading(true);
-    if (method === 'email-otp') {
-      const { error } = await sendSignInOtp(email);
-      setLoading(false);
-      if (error) { setError(error); return; }
-    } else if (method === 'phone-otp') {
-      const { error } = await sendPhoneOtp(phone);
-      setLoading(false);
-      if (error) { setError(error); return; }
-    }
+    const { error } = await sendSignInOtp(email);
+    setLoading(false);
+    if (error) { setError(error); return; }
     setStep('otp');
     startCooldown();
     setTimeout(() => otpRefs.current[0]?.focus(), 50);
@@ -119,12 +111,7 @@ export default function LoginPage() {
   const verifyCode = async (code: string) => {
     setError(null);
     setLoading(true);
-    let error: string | null;
-    if (method === 'email-otp') {
-      error = (await verifySignInOtp(email, code)).error;
-    } else {
-      error = (await verifyPhoneOtp(phone, code)).error;
-    }
+    const { error } = await verifySignInOtp(email, code);
     setLoading(false);
     if (error) {
       setError(error);
@@ -144,15 +131,9 @@ export default function LoginPage() {
     if (resendCooldown > 0) return;
     setError(null);
     setLoading(true);
-    if (method === 'email-otp') {
-      const { error } = await sendSignInOtp(email);
-      setLoading(false);
-      if (error) { setError(error); return; }
-    } else {
-      const { error } = await sendPhoneOtp(phone);
-      setLoading(false);
-      if (error) { setError(error); return; }
-    }
+    const { error } = await sendSignInOtp(email);
+    setLoading(false);
+    if (error) { setError(error); return; }
     setOtp([...EMPTY_OTP]);
     setTimeout(() => otpRefs.current[0]?.focus(), 50);
     startCooldown();
@@ -169,11 +150,11 @@ export default function LoginPage() {
             <span className="text-xl font-bold text-white">AI Centre</span>
           </Link>
           <h1 className="text-3xl font-bold text-white mb-2">
-            {step === 'otp' ? 'Check your ' + (method === 'email-otp' ? 'email' : 'phone') : 'Welcome back'}
+            {step === 'otp' ? 'Check your email' : 'Welcome back'}
           </h1>
           <p className="text-gray-400 text-sm">
             {step === 'otp'
-              ? `We sent a ${OTP_LENGTH}-digit code to ${method === 'email-otp' ? email : phone}`
+              ? `We sent a ${OTP_LENGTH}-digit code to ${email}`
               : 'Sign in to access your dashboard'}
           </p>
         </div>
@@ -225,15 +206,6 @@ export default function LoginPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setMethod('phone-otp')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${
-                    method === 'phone-otp' ? 'bg-cyan-500/20 text-cyan-400' : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  <Phone className="w-4 h-4" /> Phone OTP
-                </button>
-                <button
-                  type="button"
                   onClick={() => setMethod('password')}
                   className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${
                     method === 'password' ? 'bg-cyan-500/20 text-cyan-400' : 'text-gray-400 hover:text-white'
@@ -244,40 +216,20 @@ export default function LoginPage() {
               </div>
 
               <form onSubmit={handleMethodSubmit} className="space-y-5">
-                {(method === 'email-otp' || method === 'password') && (
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                      Email Address
-                    </label>
-                    <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                      <input
-                        id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                        required autoFocus={method === 'email-otp'}
-                        className={inputCls}
-                        placeholder="you@example.com"
-                      />
-                    </div>
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                    <input
+                      id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                      required autoFocus={method === 'email-otp'}
+                      className={inputCls}
+                      placeholder="you@example.com"
+                    />
                   </div>
-                )}
-
-                {method === 'phone-otp' && (
-                  <div>
-                    <label htmlFor="phone" className="block text-sm font-medium text-gray-300 mb-2">
-                      Phone Number
-                    </label>
-                    <div className="relative">
-                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                      <input
-                        id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
-                        required autoFocus
-                        className={inputCls}
-                        placeholder="+91 9876543210"
-                      />
-                    </div>
-                    <p className="text-gray-500 text-xs mt-2">Enter the phone number registered with your account.</p>
-                  </div>
-                )}
+                </div>
 
                 {method === 'password' && (
                   <div>
@@ -361,7 +313,7 @@ export default function LoginPage() {
 
               <button type="button" onClick={() => { setStep('method'); setOtp([...EMPTY_OTP]); setError(null); }}
                 className="w-full flex items-center justify-center gap-2 text-gray-500 hover:text-white text-sm transition-colors">
-                <ArrowLeft className="w-4 h-4" /> Change {method === 'email-otp' ? 'email' : 'phone'}
+                <ArrowLeft className="w-4 h-4" /> Change email
               </button>
             </form>
           )}
