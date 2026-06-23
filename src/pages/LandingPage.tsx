@@ -381,6 +381,7 @@ export default function LandingPage() {
             {[["Mission", "mission"], ["Programme", "gallery"], ["Principles", "pillars"]].map(([label, id]) => (
               <button key={id} onClick={() => scrollTo(id)} className="lp-link" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "var(--text-muted)" }}>{label}</button>
             ))}
+            <Link to="/about" className="lp-link" style={{ fontSize: 14, color: "var(--text-muted)" }}>About Us</Link>
           </div>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
             <Link to="/login" className="lp-link lp-hide-mobile" style={{ fontSize: 14, color: "var(--text-muted)" }}>Log in</Link>
