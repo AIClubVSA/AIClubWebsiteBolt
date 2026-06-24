@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
@@ -79,110 +79,88 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(data);
     } catch (e) {
       console.error('Error fetching profile:', e);
-    } finally {
-      setLoading(false);
+      setProfile(null);
     }
   }, []);
 
+  // ---- Auth init effect ----
+  // We do ALL auth state resolution here in one linear flow so
+  // loading is guaranteed to end. The onAuthStateChange listener
+  // only updates state after this init completes.
   useEffect(() => {
     let mounted = true;
-    let authHandled = false;
 
-    async function handleAuthCallback() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-
-      // Check for OAuth error in URL
-      const errorParam = urlParams.get('error');
-      const errorCode = urlParams.get('error_code');
-      const errorDescription = urlParams.get('error_description');
-
-      if (errorParam) {
-        console.error('OAuth error:', errorParam, errorCode, errorDescription);
-        setAuthError(decodeURIComponent(errorDescription || errorParam || 'OAuth authentication failed'));
-        window.history.replaceState(null, '', window.location.pathname);
-        if (mounted) setLoading(false);
-        return;
-      }
-
-      // Check for OAuth callback - either PKCE (code in search) or implicit (tokens in hash)
-      const authCode = urlParams.get('code');
-      const accessToken = hashParams.get('access_token');
-      const refreshToken = hashParams.get('refresh_token');
-
-      const isPKCECallback = !!authCode;
-      const isImplicitCallback = !!(accessToken && refreshToken);
-
+    async function initAuth() {
       try {
-        let sess: Session | null = null;
-        let sessionUser: User | null = null;
+        // 1. Handle OAuth callback (PKCE or implicit)
+        const urlParams = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
 
-        if (isPKCECallback) {
-          const { data, error } = await supabase.auth.exchangeCodeForSession(authCode!);
-          if (error) {
-            console.error('PKCE exchange error:', error);
-            setAuthError(error.message);
-            if (mounted) setLoading(false);
-            return;
-          }
-          sess = data.session;
-          sessionUser = data.session?.user ?? null;
+        const errorParam = urlParams.get('error');
+        const errorDescription = urlParams.get('error_description');
+        if (errorParam) {
+          setAuthError(decodeURIComponent(errorDescription || errorParam || 'OAuth authentication failed'));
           window.history.replaceState(null, '', window.location.pathname);
-        } else if (isImplicitCallback) {
-          const { data, error } = await supabase.auth.setSession(accessToken!, refreshToken!);
+          if (mounted) setLoading(false);
+          return;
+        }
+
+        const authCode = urlParams.get('code');
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+
+        let currentSession: Session | null = null;
+
+        if (authCode) {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(authCode);
           if (error) {
-            console.error('Implicit session error:', error);
             setAuthError(error.message);
             if (mounted) setLoading(false);
             return;
           }
-          sess = data.session;
-          sessionUser = data.session?.user ?? null;
+          currentSession = data.session;
+          window.history.replaceState(null, '', window.location.pathname);
+        } else if (accessToken && refreshToken) {
+          const { data, error } = await supabase.auth.setSession(accessToken, refreshToken);
+          if (error) {
+            setAuthError(error.message);
+            if (mounted) setLoading(false);
+            return;
+          }
+          currentSession = data.session;
           window.history.replaceState(null, '', window.location.pathname);
         } else {
           const { data: { session: existingSession } } = await supabase.auth.getSession();
-          sess = existingSession;
-          sessionUser = existingSession?.user ?? null;
+          currentSession = existingSession;
         }
 
         if (!mounted) return;
-        authHandled = true;
 
-        if (sessionUser) {
-          await ensureProfile(sessionUser);
-          setSession(sess);
-          setUser(sessionUser);
-          await fetchProfile(sessionUser.id);
+        // 2. Set user/session state
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+
+        // 3. Fetch or create profile
+        if (currentSession?.user) {
+          await ensureProfile(currentSession.user);
+          await fetchProfile(currentSession.user.id);
         } else {
-          setLoading(false);
+          setProfile(null);
         }
       } catch (e) {
-        console.error('Auth callback error:', e);
+        console.error('Auth init error:', e);
         setAuthError(e instanceof Error ? e.message : 'Authentication failed');
+      } finally {
         if (mounted) setLoading(false);
       }
     }
 
-    handleAuthCallback();
+    initAuth();
 
+    // After init, listen for future auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, sess) => {
         if (!mounted) return;
-
-        // Skip the initial SIGNED_IN that fires on page load if we already handled auth manually.
-        // This prevents double-processing and race conditions.
-        if (event === 'INITIAL_SESSION' || (event === 'SIGNED_IN' && authHandled)) {
-          authHandled = true;
-          setSession(sess);
-          setUser(sess?.user ?? null);
-          if (sess?.user) {
-            await fetchProfile(sess.user.id);
-          } else {
-            setProfile(null);
-            setLoading(false);
-          }
-          return;
-        }
 
         setSession(sess);
         setUser(sess?.user ?? null);
@@ -194,7 +172,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await fetchProfile(sess.user.id);
         } else {
           setProfile(null);
-          setLoading(false);
         }
       }
     );
