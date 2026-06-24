@@ -86,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    let authHandled = false;
 
     async function handleAuthCallback() {
       const urlParams = new URLSearchParams(window.location.search);
@@ -99,7 +100,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (errorParam) {
         console.error('OAuth error:', errorParam, errorCode, errorDescription);
         setAuthError(decodeURIComponent(errorDescription || errorParam || 'OAuth authentication failed'));
-        // Clean URL
         window.history.replaceState(null, '', window.location.pathname);
         if (mounted) setLoading(false);
         return;
@@ -146,6 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (!mounted) return;
+        authHandled = true;
 
         if (sessionUser) {
           await ensureProfile(sessionUser);
@@ -167,6 +168,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, sess) => {
         if (!mounted) return;
+
+        // Skip the initial SIGNED_IN that fires on page load if we already handled auth manually.
+        // This prevents double-processing and race conditions.
+        if (event === 'INITIAL_SESSION' || (event === 'SIGNED_IN' && authHandled)) {
+          authHandled = true;
+          setSession(sess);
+          setUser(sess?.user ?? null);
+          if (sess?.user) {
+            await fetchProfile(sess.user.id);
+          } else {
+            setProfile(null);
+            setLoading(false);
+          }
+          return;
+        }
 
         setSession(sess);
         setUser(sess?.user ?? null);
