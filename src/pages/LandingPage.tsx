@@ -593,6 +593,41 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <section style={{ padding: "clamp(80px,12vh,120px) clamp(20px,4vw,56px)", borderTop: "1px solid var(--line)" }}>
+        <div style={{ maxWidth: 1320, margin: "0 auto" }}>
+          <div className="lp-eyebrow" style={{ marginBottom: 24 }} data-fade>[ University Connections ]</div>
+          <h2 className="lp-display" data-fade style={{ fontSize: "clamp(1.8rem,4vw,3.2rem)", lineHeight: 1.05, marginBottom: 16 }}>
+            Our university partners.
+          </h2>
+          <p data-fade style={{ color: "var(--text-muted)", fontSize: 16, lineHeight: 1.6, maxWidth: 520, marginBottom: 56 }}>
+            We collaborate with leading universities to bring expert speakers, research opportunities, and real-world connections to our members.
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 20 }}>
+            {[
+              { logo: "/images/Logo-1716834208933.jpg", name: "Garden City University", abbr: "GCU", desc: "Our keynote partners for the AI Summit 2025, connecting students with faculty researchers and industry professionals.", location: "Bangalore, India" },
+              { logo: "/images/images.png", name: "University of Liverpool", abbr: "UoL", desc: "A globally ranked research university, supporting our members with access to cutting-edge AI research and mentorship.", location: "Liverpool, UK" },
+            ].map((uni) => (
+              <div
+                key={uni.abbr}
+                data-fade
+                className="lp-panel"
+                onMouseMove={spotlight}
+                style={{ padding: "32px", borderRadius: 16, display: "flex", flexDirection: "column", gap: 20 }}
+              >
+                <div style={{ height: 80, display: "flex", alignItems: "center" }}>
+                  <img src={uni.logo} alt={uni.name} style={{ maxHeight: 72, maxWidth: 180, objectFit: "contain", filter: "brightness(1.1) contrast(1.05)" }} />
+                </div>
+                <div>
+                  <h3 className="lp-display" style={{ fontSize: 18, letterSpacing: "-0.02em", marginBottom: 4 }}>{uni.name}</h3>
+                  <p style={{ color: "var(--accent3)", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>{uni.location}</p>
+                  <p style={{ color: "var(--text-muted)", fontSize: 14, lineHeight: 1.6 }}>{uni.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <footer style={{ borderTop: "1px solid var(--line)", padding: "56px clamp(20px,4vw,56px) 40px" }}>
         <div style={{ maxWidth: 1320, margin: "0 auto" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 40, marginBottom: 56 }}>
