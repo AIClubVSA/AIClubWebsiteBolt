@@ -1,9 +1,16 @@
+export interface ProjectStudent {
+  id: string;
+  project_id: string;
+  student_id: string;
+  created_at: string;
+}
+
 export interface Project {
   id: string;
   title: string;
   description?: string;
   status: 'not_started' | 'in_progress' | 'completed' | 'review';
-  student_id: string;
+  student_id?: string;
   mentor_notes?: string;
   due_date?: string;
   created_at: string;

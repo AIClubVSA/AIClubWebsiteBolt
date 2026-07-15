@@ -1,0 +1,11 @@
+ALTER PUBLICATION supabase_realtime ADD TABLE announcements;
+ALTER PUBLICATION supabase_realtime ADD TABLE classes;
+ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+ALTER PUBLICATION supabase_realtime ADD TABLE projects;
+ALTER PUBLICATION supabase_realtime ADD TABLE profiles;
+ALTER PUBLICATION supabase_realtime ADD TABLE polls;
+ALTER PUBLICATION supabase_realtime ADD TABLE poll_options;
+ALTER PUBLICATION supabase_realtime ADD TABLE poll_votes;
+ALTER PUBLICATION supabase_realtime ADD TABLE attendance;
+ALTER PUBLICATION supabase_realtime ADD TABLE class_notes_files;
+ALTER PUBLICATION supabase_realtime ADD TABLE project_students;

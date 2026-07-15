@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
 export interface Profile {
@@ -84,97 +84,84 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // ---- Auth init effect ----
-  // We do ALL auth state resolution here in one linear flow so
-  // loading is guaranteed to end. The onAuthStateChange listener
-  // only updates state after this init completes.
   useEffect(() => {
     let mounted = true;
+    let initialized = false;
 
-    async function initAuth() {
-      try {
-        // 1. Handle OAuth callback (PKCE or implicit)
-        const urlParams = new URLSearchParams(window.location.search);
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    // Check for OAuth error in URL first
+    const urlParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const errorParam = urlParams.get('error') || hashParams.get('error');
+    const errorDescription = urlParams.get('error_description') || hashParams.get('error_description');
 
-        const errorParam = urlParams.get('error');
-        const errorDescription = urlParams.get('error_description');
-        if (errorParam) {
-          setAuthError(decodeURIComponent(errorDescription || errorParam || 'OAuth authentication failed'));
-          window.history.replaceState(null, '', window.location.pathname);
-          if (mounted) setLoading(false);
-          return;
+    if (errorParam) {
+      setAuthError(decodeURIComponent(errorDescription || errorParam || 'OAuth authentication failed'));
+      window.history.replaceState(null, '', window.location.pathname);
+      setLoading(false);
+      return;
+    }
+
+    async function handleAuthChange(event: AuthChangeEvent, sess: Session | null) {
+      if (!mounted) return;
+
+      // Update state
+      setSession(sess);
+      setUser(sess?.user ?? null);
+
+      if (sess?.user) {
+        if (event === 'SIGNED_IN') {
+          await ensureProfile(sess.user);
         }
+        await fetchProfile(sess.user.id);
 
-        const authCode = urlParams.get('code');
-        const accessToken = hashParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token');
-
-        let currentSession: Session | null = null;
-
-        if (authCode) {
-          const { data, error } = await supabase.auth.exchangeCodeForSession(authCode);
-          if (error) {
-            setAuthError(error.message);
-            if (mounted) setLoading(false);
-            return;
-          }
-          currentSession = data.session;
+        // Clean up URL after OAuth callback
+        if (window.location.hash.includes('access_token')) {
           window.history.replaceState(null, '', window.location.pathname);
-        } else if (accessToken && refreshToken) {
-          const { data, error } = await supabase.auth.setSession(accessToken, refreshToken);
-          if (error) {
-            setAuthError(error.message);
-            if (mounted) setLoading(false);
-            return;
-          }
-          currentSession = data.session;
-          window.history.replaceState(null, '', window.location.pathname);
-        } else {
-          const { data: { session: existingSession } } = await supabase.auth.getSession();
-          currentSession = existingSession;
         }
+      } else {
+        setProfile(null);
+      }
 
-        if (!mounted) return;
-
-        // 2. Set user/session state
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-
-        // 3. Fetch or create profile
-        if (currentSession?.user) {
-          await ensureProfile(currentSession.user);
-          await fetchProfile(currentSession.user.id);
-        } else {
-          setProfile(null);
-        }
-      } catch (e) {
-        console.error('Auth init error:', e);
-        setAuthError(e instanceof Error ? e.message : 'Authentication failed');
-      } finally {
-        if (mounted) setLoading(false);
+      // Mark initialization complete after first auth event
+      if (!initialized) {
+        initialized = true;
+        setLoading(false);
       }
     }
 
-    initAuth();
+    // Subscribe to auth changes first
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
 
-    // After init, listen for future auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, sess) => {
-        if (!mounted) return;
+    // Then get initial session - this will trigger INITIAL_SESSION event
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      if (!mounted) return;
 
-        setSession(sess);
-        setUser(sess?.user ?? null);
-
-        if (sess?.user) {
-          if (event === 'SIGNED_IN') {
-            await ensureProfile(sess.user);
+      // If we have a session, update state (onAuthStateChange might not fire for existing sessions)
+      if (initialSession && !initialized) {
+        setSession(initialSession);
+        setUser(initialSession.user);
+        fetchProfile(initialSession.user.id).then(() => {
+          if (mounted && !initialized) {
+            initialized = true;
+            setLoading(false);
           }
-          await fetchProfile(sess.user.id);
-        } else {
-          setProfile(null);
+        });
+
+        // Clean up OAuth URL if present
+        if (window.location.hash.includes('access_token')) {
+          window.history.replaceState(null, '', window.location.pathname);
         }
+      } else if (!initialSession && !initialized) {
+        // No session and no initial event yet - wait a bit for onAuthStateChange
+        // For OAuth callbacks, onAuthStateChange fires with the session
+        setTimeout(() => {
+          if (mounted && !initialized) {
+            initialized = true;
+            setLoading(false);
+          }
+        }, 100);
       }
-    );
+    });
 
     return () => {
       mounted = false;

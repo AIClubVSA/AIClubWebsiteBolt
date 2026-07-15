@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Mail, Lock, Loader2, AlertCircle, ArrowLeft, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Loader2, AlertCircle, ArrowLeft, ShieldCheck, Eye, EyeOff, RefreshCw } from 'lucide-react';
 
-const OTP_LENGTH = 6;
-const EMPTY_OTP = Array(OTP_LENGTH).fill('');
+const OTP_LENGTH = 8;
 
 type SignInMethod = 'email-otp' | 'password';
 type Step = 'method' | 'otp';
@@ -25,13 +24,13 @@ export default function LoginPage() {
   const [step, setStep] = useState<Step>('method');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [otp, setOtp] = useState<string[]>(EMPTY_OTP);
+  const [otp, setOtp] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
-  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const otpRef = useRef<HTMLInputElement | null>(null);
   const {
     sendSignInOtp, verifySignInOtp,
     signInWithPassword,
@@ -83,28 +82,15 @@ export default function LoginPage() {
     if (error) { setError(error); return; }
     setStep('otp');
     startCooldown();
-    setTimeout(() => otpRefs.current[0]?.focus(), 50);
+    setTimeout(() => otpRef.current?.focus(), 100);
   };
 
-  const handleOtpChange = (i: number, val: string) => {
-    if (!/^\d*$/.test(val)) return;
-    const next = [...otp];
-    next[i] = val.slice(-1);
-    setOtp(next);
-    if (val && i < OTP_LENGTH - 1) otpRefs.current[i + 1]?.focus();
-    if (next.every((d) => d !== '')) verifyCode(next.join(''));
-  };
-
-  const handleOtpKeyDown = (i: number, e: React.KeyboardEvent) => {
-    if (e.key === 'Backspace' && !otp[i] && i > 0) otpRefs.current[i - 1]?.focus();
-  };
-
-  const handleOtpPaste = (e: React.ClipboardEvent) => {
-    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LENGTH);
-    if (text.length === OTP_LENGTH) {
-      const digits = text.split('');
-      setOtp(digits);
-      verifyCode(text);
+  const handleOtpChange = (val: string) => {
+    const digits = val.replace(/\D/g, '').slice(0, OTP_LENGTH);
+    setOtp(digits);
+    setError(null);
+    if (digits.length === OTP_LENGTH) {
+      verifyCode(digits);
     }
   };
 
@@ -114,9 +100,13 @@ export default function LoginPage() {
     const { error } = await verifySignInOtp(email, code);
     setLoading(false);
     if (error) {
-      setError(error);
-      setOtp([...EMPTY_OTP]);
-      setTimeout(() => otpRefs.current[0]?.focus(), 50);
+      setError(
+        error.toLowerCase().includes('expired') || error.toLowerCase().includes('invalid')
+          ? 'Code is expired or incorrect. Please request a new one.'
+          : error
+      );
+      setOtp('');
+      setTimeout(() => otpRef.current?.focus(), 50);
       return;
     }
     navigate('/dashboard');
@@ -124,18 +114,18 @@ export default function LoginPage() {
 
   const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await verifyCode(otp.join(''));
+    if (otp.length === OTP_LENGTH) await verifyCode(otp);
   };
 
   const handleResend = async () => {
     if (resendCooldown > 0) return;
     setError(null);
+    setOtp('');
     setLoading(true);
     const { error } = await sendSignInOtp(email);
     setLoading(false);
     if (error) { setError(error); return; }
-    setOtp([...EMPTY_OTP]);
-    setTimeout(() => otpRefs.current[0]?.focus(), 50);
+    setTimeout(() => otpRef.current?.focus(), 100);
     startCooldown();
   };
 
@@ -274,21 +264,24 @@ export default function LoginPage() {
           {step === 'otp' && (
             <form onSubmit={handleOtpSubmit} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-4 text-center">
+                <label className="block text-sm font-medium text-gray-300 mb-3 text-center">
                   Enter the {OTP_LENGTH}-digit code
                 </label>
-                <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
-                  {otp.map((digit, i) => (
-                    <input
-                      key={i}
-                      ref={(el) => { otpRefs.current[i] = el; }}
-                      type="text" inputMode="numeric" maxLength={1} value={digit}
-                      onChange={(e) => handleOtpChange(i, e.target.value)}
-                      onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                      className="w-12 h-14 text-center text-xl font-bold bg-white/5 border border-white/10 rounded-xl text-white focus:border-cyan-500 focus:outline-none transition-colors"
-                    />
-                  ))}
-                </div>
+                <input
+                  ref={otpRef}
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={otp}
+                  onChange={(e) => handleOtpChange(e.target.value)}
+                  maxLength={OTP_LENGTH}
+                  placeholder="00000000"
+                  className="w-full text-center text-3xl font-bold tracking-[0.5em] bg-white/5 border border-white/10 rounded-xl py-4 px-4 text-white placeholder-gray-700 focus:border-cyan-500 focus:outline-none transition-colors"
+                  disabled={loading}
+                />
+                <p className="text-xs text-gray-500 text-center mt-2">
+                  {otp.length}/{OTP_LENGTH} digits entered
+                </p>
               </div>
 
               {loading && (
@@ -299,19 +292,20 @@ export default function LoginPage() {
               )}
 
               <div className="space-y-3">
-                <button type="submit" disabled={loading || otp.some((d) => !d)}
+                <button type="submit" disabled={loading || otp.length < OTP_LENGTH}
                   className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold py-3 rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all disabled:opacity-50">
                   {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Verifying...</> : <><ShieldCheck className="w-5 h-5" /> Verify &amp; Sign In</>}
                 </button>
                 <div className="text-center">
                   <button type="button" onClick={handleResend} disabled={resendCooldown > 0 || loading}
-                    className="text-sm text-gray-400 hover:text-cyan-400 transition-colors disabled:opacity-50">
-                    {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}
+                    className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-cyan-400 transition-colors disabled:opacity-50">
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Send a new code'}
                   </button>
                 </div>
               </div>
 
-              <button type="button" onClick={() => { setStep('method'); setOtp([...EMPTY_OTP]); setError(null); }}
+              <button type="button" onClick={() => { setStep('method'); setOtp(''); setError(null); }}
                 className="w-full flex items-center justify-center gap-2 text-gray-500 hover:text-white text-sm transition-colors">
                 <ArrowLeft className="w-4 h-4" /> Change email
               </button>

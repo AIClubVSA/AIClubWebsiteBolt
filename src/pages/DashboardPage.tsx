@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Project, Message, Announcement, Class, Note, Attendance, ClassNoteFile, Poll, PollOption, PollVote } from '../types/database';
@@ -27,6 +27,8 @@ import {
   Settings,
   User,
   ShieldCheck,
+  Sparkles,
+  AlertCircle,
 } from 'lucide-react';
 import { format, parseISO, isToday, isTomorrow, isThisWeek } from 'date-fns';
 
@@ -57,13 +59,9 @@ export default function DashboardPage() {
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [pollSubmitting, setPollSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (profile) {
-      fetchDashboardData();
-    }
-  }, [profile]);
+  const fetchDashboardDataRef = useRef<() => void>(() => {});
 
-  async function fetchDashboardData() {
+  const fetchDashboardData = useCallback(async () => {
     try {
       const [projectsRes, messagesRes, announcementsRes, classesRes, adminsRes, notesRes, attendanceRes, classNoteFilesRes, pollsRes, pollOptionsRes, myVotesRes] = await Promise.all([
         supabase.from('projects').select('*').eq('student_id', profile!.id).order('created_at', { ascending: false }),
@@ -95,7 +93,28 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [profile]);
+
+  useEffect(() => {
+    fetchDashboardDataRef.current = fetchDashboardData;
+  });
+
+  useEffect(() => {
+    if (!profile) return;
+    fetchDashboardData();
+
+    const channel = supabase
+      .channel('dashboard-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, () => fetchDashboardDataRef.current())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'classes' }, () => fetchDashboardDataRef.current())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => fetchDashboardDataRef.current())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => fetchDashboardDataRef.current())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'polls' }, () => fetchDashboardDataRef.current())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'poll_votes' }, () => fetchDashboardDataRef.current())
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [profile]);
 
   async function handleSendMessage(e: React.FormEvent) {
     e.preventDefault();
@@ -108,7 +127,6 @@ export default function DashboardPage() {
         receiver_id: selectedAdmin,
         content: newMessage.trim(),
       });
-
       if (error) throw error;
       setNewMessage('');
       fetchDashboardData();
@@ -148,62 +166,75 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#162132] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary-400 animate-spin" />
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-sky-50 to-primary-100 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-white shadow-lg shadow-primary-200 flex items-center justify-center">
+            <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
+          </div>
+          <p className="text-primary-600 font-medium">Loading your dashboard...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#162132]">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-sky-50 to-primary-100">
       {/* Sidebar */}
-      <aside className="fixed left-0 top-0 bottom-0 w-64 bg-secondary-900 border-r border-secondary-700/60 hidden lg:block">
-        <div className="p-6">
-          <div className="flex items-center gap-2 mb-8">
-            <img src="/images/WhatsApp_Image_2026-06-03_at_5.22.16_PM.jpeg" className="w-8 h-8 object-contain rounded" alt="AI Club" />
-            <span className="font-display text-xl font-bold text-white">AI Centre</span>
+      <aside className="fixed left-0 top-0 bottom-0 w-64 hidden lg:flex flex-col bg-white/80 backdrop-blur-xl border-r border-primary-100 shadow-xl shadow-primary-100/50">
+        {/* Logo */}
+        <div className="p-6 border-b border-primary-100/80">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl overflow-hidden shadow-md shadow-primary-200/60">
+              <img src="/images/WhatsApp_Image_2026-06-03_at_5.22.16_PM.jpeg" className="w-full h-full object-cover" alt="AI Club" />
+            </div>
+            <div>
+              <span className="font-display text-lg font-bold text-primary-900 leading-none block">AI Centre</span>
+              <span className="text-[10px] text-primary-400 font-medium tracking-widest uppercase">Vidyashilp</span>
+            </div>
           </div>
-
-          <nav className="space-y-1">
-            {sidebarItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id as TabType)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
-                  activeTab === item.id
-                    ? 'bg-primary-500/10 text-primary-400 border border-primary-500/20'
-                    : 'text-secondary-400 hover:text-white hover:bg-secondary-700/50'
-                }`}
-              >
-                <div className="relative">
-                  <item.icon className="w-5 h-5" />
-                  {item.badge > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-red-500 rounded-full border border-secondary-900 flex items-center justify-center">
-                      <span className="text-white text-[8px] font-bold leading-none">{item.badge > 9 ? '9+' : item.badge}</span>
-                    </span>
-                  )}
-                </div>
-                <span className="font-medium">{item.label}</span>
-              </button>
-            ))}
-          </nav>
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-secondary-700">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-full bg-primary-500/20 flex items-center justify-center">
-              <span className="text-primary-400 font-semibold">
+        {/* Nav */}
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          {sidebarItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id as TabType)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 ${
+                activeTab === item.id
+                  ? 'bg-gradient-to-r from-primary-500 to-primary-400 text-white shadow-lg shadow-primary-300/50 scale-[1.02]'
+                  : 'text-primary-700/70 hover:text-primary-800 hover:bg-primary-50'
+              }`}
+            >
+              <div className="relative">
+                <item.icon className="w-5 h-5" />
+                {item.badge > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-amber-400 rounded-full flex items-center justify-center">
+                    <span className="text-white text-[8px] font-bold leading-none">{item.badge > 9 ? '9+' : item.badge}</span>
+                  </span>
+                )}
+              </div>
+              <span className="font-medium text-sm">{item.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        {/* Profile footer */}
+        <div className="p-4 border-t border-primary-100/80">
+          <div className="flex items-center gap-3 mb-3 px-2">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shadow-md shadow-primary-300/40">
+              <span className="text-white font-bold text-sm">
                 {profile?.full_name.charAt(0).toUpperCase()}
               </span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white font-medium truncate">{profile?.full_name}</p>
-              <p className="text-secondary-500 text-sm truncate">{profile?.email}</p>
+              <p className="text-primary-900 font-semibold text-sm truncate">{profile?.full_name}</p>
+              <p className="text-primary-400 text-xs truncate">{profile?.email}</p>
             </div>
           </div>
           <button
             onClick={signOut}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 text-secondary-400 hover:text-white hover:bg-secondary-700/50 rounded-lg transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-primary-500 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all text-sm font-medium"
           >
             <LogOut className="w-4 h-4" />
             <span>Sign Out</span>
@@ -214,104 +245,95 @@ export default function DashboardPage() {
       {/* Main Content */}
       <main className="lg:ml-64">
         {/* Mobile Header */}
-        <header className="lg:hidden fixed top-0 left-0 right-0 bg-secondary-900 border-b border-secondary-700/60 z-40">
-          <div className="flex items-center justify-between p-4">
+        <header className="lg:hidden fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-b border-primary-100 z-40 shadow-sm shadow-primary-100/50">
+          <div className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center gap-2">
-              <img src="/images/WhatsApp_Image_2026-06-03_at_5.22.16_PM.jpeg" className="w-6 h-6 object-contain rounded" alt="AI Club" />
-              <span className="font-display text-lg font-bold text-white">AI Centre</span>
+              <div className="w-7 h-7 rounded-lg overflow-hidden">
+                <img src="/images/WhatsApp_Image_2026-06-03_at_5.22.16_PM.jpeg" className="w-full h-full object-cover" alt="AI Club" />
+              </div>
+              <span className="font-display text-base font-bold text-primary-900">AI Centre</span>
             </div>
-            <button
-              onClick={signOut}
-              className="p-2 text-secondary-400 hover:text-white"
-            >
+            <button onClick={signOut} className="p-2 text-primary-400 hover:text-red-500 transition-colors rounded-lg">
               <LogOut className="w-5 h-5" />
             </button>
           </div>
-          <div className="flex gap-1 p-2 overflow-x-auto">
+          <div className="flex gap-1 px-3 pb-2 overflow-x-auto">
             {sidebarItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id as TabType)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl whitespace-nowrap transition-all text-xs font-medium ${
                   activeTab === item.id
-                    ? 'bg-primary-500/10 text-primary-400'
-                    : 'text-secondary-400 hover:text-white'
+                    ? 'bg-primary-500 text-white shadow-md shadow-primary-300/40'
+                    : 'text-primary-500 hover:bg-primary-50'
                 }`}
               >
                 <div className="relative">
-                  <item.icon className="w-4 h-4" />
+                  <item.icon className="w-3.5 h-3.5" />
                   {item.badge > 0 && (
-                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-secondary-900" />
+                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full" />
                   )}
                 </div>
-                <span className="text-sm font-medium">{item.label}</span>
+                <span>{item.label}</span>
               </button>
             ))}
           </div>
         </header>
 
         <div className="pt-28 lg:pt-8 p-5 lg:p-10">
-          {/* Overview Tab */}
+
+          {/* ── Overview ── */}
           {activeTab === 'overview' && (
             <div className="space-y-8">
-              <div>
-                <h1 className="font-display text-3xl font-bold text-white mb-2">
-                  Welcome back, {profile?.full_name.split(' ')[0]}!
-                </h1>
-                <p className="text-secondary-400">Here's what's happening with your AI journey</p>
+              {/* Hero greeting */}
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-primary-500 to-primary-400 p-8 shadow-xl shadow-primary-300/40">
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15)_0%,_transparent_60%)]" />
+                <div className="relative">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="w-4 h-4 text-primary-100" />
+                    <span className="text-primary-100 text-sm font-medium uppercase tracking-widest">Dashboard</span>
+                  </div>
+                  <h1 className="font-display text-3xl font-bold text-white mb-1">
+                    Welcome back, {profile?.full_name.split(' ')[0]}!
+                  </h1>
+                  <p className="text-primary-100/80">Here's what's happening with your AI journey</p>
+                </div>
               </div>
 
               {/* Quick Stats */}
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="p-7 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
-                  <div className="text-secondary-400 text-sm mb-2">Active Projects</div>
-                  <div className="font-display text-3xl font-bold text-white">
-                    {projects.filter((p) => p.status === 'in_progress').length}
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                {[
+                  { label: 'Active Projects', value: projects.filter((p) => p.status === 'in_progress').length, color: 'text-primary-600', bg: 'from-primary-50 to-sky-50', border: 'border-primary-100' },
+                  { label: 'Completed', value: projects.filter((p) => p.status === 'completed').length, color: 'text-accent-600', bg: 'from-accent-50 to-emerald-50', border: 'border-accent-100' },
+                  { label: 'Unread Messages', value: messages.filter((m) => m.receiver_id === profile?.id && !m.read_at).length, color: 'text-sky-600', bg: 'from-sky-50 to-blue-50', border: 'border-sky-100' },
+                  { label: 'Classes This Week', value: upcomingClasses.length, color: 'text-violet-600', bg: 'from-violet-50 to-purple-50', border: 'border-violet-100' },
+                ].map((stat) => (
+                  <div key={stat.label} className={`p-6 bg-gradient-to-br ${stat.bg} border ${stat.border} rounded-3xl shadow-sm hover:shadow-md transition-shadow`}>
+                    <div className="text-secondary-500 text-xs font-semibold uppercase tracking-wider mb-3">{stat.label}</div>
+                    <div className={`font-display text-4xl font-bold ${stat.color}`}>{stat.value}</div>
                   </div>
-                </div>
-                <div className="p-7 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
-                  <div className="text-secondary-400 text-sm mb-2">Completed</div>
-                  <div className="font-display text-3xl font-bold text-accent-400">
-                    {projects.filter((p) => p.status === 'completed').length}
-                  </div>
-                </div>
-                <div className="p-7 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
-                  <div className="text-secondary-400 text-sm mb-2">Unread Messages</div>
-                  <div className="font-display text-3xl font-bold text-primary-400">
-                    {messages.filter((m) => m.receiver_id === profile?.id && !m.read_at).length}
-                  </div>
-                </div>
-                <div className="p-7 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
-                  <div className="text-secondary-400 text-sm mb-2">Classes This Week</div>
-                  <div className="font-display text-3xl font-bold text-white">
-                    {upcomingClasses.length}
-                  </div>
-                </div>
+                ))}
               </div>
 
               {/* Upcoming Classes */}
               {upcomingClasses.length > 0 && (
                 <div>
-                  <h2 className="font-display text-lg font-semibold text-white mb-4">Upcoming Classes</h2>
+                  <h2 className="font-display text-base font-bold text-primary-900 mb-4 flex items-center gap-2">
+                    <CalendarDays className="w-4 h-4 text-primary-400" /> Upcoming Classes
+                  </h2>
                   <div className="space-y-3">
                     {upcomingClasses.slice(0, 3).map((c) => (
-                      <div
-                        key={c.id}
-                        className="flex items-center gap-4 p-4 bg-secondary-800/50 border border-secondary-700/50 rounded-xl"
-                      >
-                        <div className="w-12 h-12 rounded-lg bg-primary-500/10 flex items-center justify-center">
-                          <CalendarDays className="w-6 h-6 text-primary-400" />
+                      <div key={c.id} className="flex items-center gap-4 p-5 bg-white/80 backdrop-blur-sm border border-primary-100 rounded-2xl shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5">
+                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shadow-md shadow-primary-300/40 shrink-0">
+                          <CalendarDays className="w-5 h-5 text-white" />
                         </div>
                         <div className="flex-1">
-                          <p className="text-white font-medium">{c.title}</p>
-                          <p className="text-secondary-400 text-sm">
-                            {format(parseISO(c.date), 'EEEE, MMM d')} at {c.start_time}
-                          </p>
+                          <p className="text-primary-900 font-semibold">{c.title}</p>
+                          <p className="text-primary-500 text-sm">{format(parseISO(c.date), 'EEEE, MMM d')} at {c.start_time}</p>
                         </div>
                         {c.location && (
-                          <div className="flex items-center gap-1 text-secondary-500 text-sm">
-                            <MapPin className="w-4 h-4" />
-                            {c.location}
+                          <div className="flex items-center gap-1 text-primary-400 text-sm">
+                            <MapPin className="w-3.5 h-3.5" />{c.location}
                           </div>
                         )}
                       </div>
@@ -323,27 +345,18 @@ export default function DashboardPage() {
               {/* Recent Announcements */}
               {announcements.length > 0 && (
                 <div>
-                  <h2 className="font-display text-lg font-semibold text-white mb-4">Recent Announcements</h2>
+                  <h2 className="font-display text-base font-bold text-primary-900 mb-4 flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-primary-400" /> Recent Announcements
+                  </h2>
                   <div className="space-y-3">
                     {announcements.slice(0, 2).map((a) => (
-                      <div
-                        key={a.id}
-                        className={`p-4 rounded-xl border ${
-                          a.priority === 'high'
-                            ? 'bg-red-500/10 border-red-500/20'
-                            : 'bg-secondary-800/50 border-secondary-700/50'
-                        }`}
-                      >
+                      <div key={a.id} className={`p-5 rounded-2xl border shadow-sm ${a.priority === 'high' ? 'bg-red-50 border-red-200' : 'bg-white/80 border-primary-100'}`}>
                         <div className="flex items-start gap-3">
-                          {a.priority === 'high' && (
-                            <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                          )}
+                          {a.priority === 'high' && <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />}
                           <div>
-                            <p className="text-white font-medium">{a.title}</p>
-                            <p className="text-secondary-400 text-sm mt-1 line-clamp-2">{a.content}</p>
-                            <p className="text-secondary-500 text-xs mt-2">
-                              {format(parseISO(a.created_at), 'MMM d, yyyy')}
-                            </p>
+                            <p className="text-primary-900 font-semibold">{a.title}</p>
+                            <p className="text-primary-600/70 text-sm mt-1 line-clamp-2">{a.content}</p>
+                            <p className="text-primary-400 text-xs mt-2">{format(parseISO(a.created_at), 'MMM d, yyyy')}</p>
                           </div>
                         </div>
                       </div>
@@ -355,25 +368,23 @@ export default function DashboardPage() {
               {/* Pending Polls */}
               {unvotedPollCount > 0 && (
                 <div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <h2 className="font-display text-lg font-semibold text-white">Polls Awaiting Your Vote</h2>
-                    <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-full text-xs font-medium">{unvotedPollCount}</span>
-                  </div>
+                  <h2 className="font-display text-base font-bold text-primary-900 mb-4 flex items-center gap-2">
+                    <BarChart2 className="w-4 h-4 text-amber-400" />
+                    Polls Awaiting Your Vote
+                    <span className="px-2 py-0.5 bg-amber-100 text-amber-600 rounded-full text-xs font-semibold">{unvotedPollCount}</span>
+                  </h2>
                   <div className="space-y-3">
                     {polls.filter((p) => !myVotes.some((v) => v.poll_id === p.id)).slice(0, 2).map((poll) => (
-                      <div key={poll.id} className="p-4 bg-secondary-800/50 border border-amber-500/20 rounded-xl flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
-                          <BarChart2 className="w-5 h-5 text-amber-400" />
+                      <div key={poll.id} className="p-5 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-4 shadow-sm">
+                        <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                          <BarChart2 className="w-5 h-5 text-amber-500" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-white font-medium truncate">{poll.question}</p>
-                          <p className="text-secondary-400 text-xs mt-0.5">Your vote is needed</p>
+                          <p className="text-primary-900 font-semibold truncate">{poll.question}</p>
+                          <p className="text-primary-500 text-xs mt-0.5">Your vote is needed</p>
                         </div>
-                        <button
-                          onClick={() => setActiveTab('polls')}
-                          className="shrink-0 px-3 py-1.5 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 rounded-lg text-sm font-medium transition-colors"
-                        >
-                          Vote Now
+                        <button onClick={() => setActiveTab('polls')} className="shrink-0 px-4 py-2 bg-amber-400 hover:bg-amber-500 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm">
+                          Vote
                         </button>
                       </div>
                     ))}
@@ -383,61 +394,42 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Projects Tab */}
+          {/* ── Projects ── */}
           {activeTab === 'projects' && (
             <div className="space-y-6">
-              <h1 className="font-display text-2xl font-bold text-white">My Projects</h1>
-
+              <PageHeader title="My Projects" subtitle="Projects assigned by your mentors" />
               <div className="space-y-4">
                 {projects.length === 0 ? (
-                  <div className="text-center py-12 text-secondary-400">
-                    No projects assigned yet. Your mentor will assign projects to you.
-                  </div>
+                  <EmptyState icon={FolderGit} message="No projects assigned yet. Your mentor will assign projects to you." />
                 ) : (
                   projects.map((project) => (
-                    <div
-                      key={project.id}
-                      className="p-6 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl"
-                    >
-                      <div className="flex items-start justify-between">
+                    <div key={project.id} className="p-6 bg-white/80 backdrop-blur-sm border border-primary-100 rounded-3xl shadow-sm hover:shadow-md transition-all">
+                      <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            {project.status === 'completed' ? (
-                              <CheckCircle2 className="w-5 h-5 text-accent-400" />
-                            ) : (
-                              <Circle className="w-5 h-5 text-secondary-500" />
-                            )}
-                            <h3 className="text-white font-semibold text-lg">{project.title}</h3>
+                            {project.status === 'completed'
+                              ? <CheckCircle2 className="w-5 h-5 text-accent-500" />
+                              : <Circle className="w-5 h-5 text-primary-300" />}
+                            <h3 className="text-primary-900 font-bold text-lg">{project.title}</h3>
                           </div>
-                          {project.description && (
-                            <p className="text-secondary-400 mt-1">{project.description}</p>
-                          )}
+                          {project.description && <p className="text-primary-600/70 mt-1">{project.description}</p>}
                           {project.mentor_notes && (
-                            <div className="mt-3 p-3 bg-primary-500/10 border border-primary-500/20 rounded-lg">
-                              <p className="text-primary-300 text-sm">
-                                <span className="font-medium">Mentor Notes:</span> {project.mentor_notes}
-                              </p>
+                            <div className="mt-3 p-3 bg-primary-50 border border-primary-200 rounded-xl">
+                              <p className="text-primary-700 text-sm"><span className="font-semibold">Mentor Notes:</span> {project.mentor_notes}</p>
                             </div>
                           )}
                           {project.due_date && (
-                            <p className="text-secondary-500 text-sm mt-3">
-                              Due: {format(parseISO(project.due_date), 'MMMM d, yyyy')}
-                            </p>
+                            <p className="text-primary-400 text-sm mt-3">Due: {format(parseISO(project.due_date), 'MMMM d, yyyy')}</p>
                           )}
                         </div>
-                        <div
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            project.status === 'completed'
-                              ? 'bg-accent-500/20 text-accent-400'
-                              : project.status === 'in_progress'
-                              ? 'bg-primary-500/20 text-primary-400'
-                              : project.status === 'review'
-                              ? 'bg-yellow-500/20 text-yellow-400'
-                              : 'bg-secondary-700 text-secondary-400'
-                          }`}
-                        >
+                        <span className={`px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 ${
+                          project.status === 'completed' ? 'bg-accent-100 text-accent-700'
+                          : project.status === 'in_progress' ? 'bg-primary-100 text-primary-700'
+                          : project.status === 'review' ? 'bg-amber-100 text-amber-700'
+                          : 'bg-secondary-100 text-secondary-500'
+                        }`}>
                           {project.status.replace('_', ' ')}
-                        </div>
+                        </span>
                       </div>
                     </div>
                   ))
@@ -446,58 +438,39 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Messages Tab */}
+          {/* ── Messages ── */}
           {activeTab === 'messages' && (
             <div className="space-y-6">
-              <h1 className="font-display text-2xl font-bold text-white">Messages</h1>
+              <PageHeader title="Messages" subtitle="Communicate with your mentors" />
 
-              {/* Admin Selection */}
-              <div className="bg-secondary-800/50 border border-secondary-700/50 rounded-xl p-4">
-                <label className="block text-sm font-medium text-secondary-300 mb-2">
-                  Send message to admin
-                </label>
+              <div className="bg-white/80 backdrop-blur-sm border border-primary-100 rounded-2xl p-4 shadow-sm">
+                <label className="block text-xs font-semibold text-primary-500 uppercase tracking-wider mb-2">Send message to</label>
                 <select
                   value={selectedAdmin || ''}
                   onChange={(e) => setSelectedAdmin(e.target.value)}
-                  className="w-full bg-secondary-900 border border-secondary-700 rounded-lg px-4 py-2 text-white"
+                  className="w-full bg-primary-50 border border-primary-200 rounded-xl px-4 py-2.5 text-primary-900 focus:outline-none focus:border-primary-400 transition-colors text-sm"
                 >
-                  <option value="">Select an admin</option>
+                  <option value="">Select a mentor</option>
                   {admins.map((admin) => (
-                    <option key={admin.id} value={admin.id}>
-                      {admin.full_name}
-                    </option>
+                    <option key={admin.id} value={admin.id}>{admin.full_name}</option>
                   ))}
                 </select>
               </div>
 
-              {/* Message List */}
-              <div className="space-y-3 max-h-[550px] overflow-y-auto pr-1">
+              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
                 {messages.length === 0 ? (
-                  <div className="text-center py-10 text-secondary-400">
-                    No messages yet. Start a conversation with an admin.
-                  </div>
+                  <EmptyState icon={MessageSquare} message="No messages yet. Start a conversation with a mentor." />
                 ) : (
                   messages.map((msg) => {
                     const isOwn = msg.sender_id === profile?.id;
                     return (
-                      <div
-                        key={msg.id}
-                        className={`group relative p-4 rounded-xl ${
-                          isOwn
-                            ? 'bg-primary-500/10 border border-primary-500/20 ml-8'
-                            : 'bg-secondary-800/50 border border-secondary-700/50 mr-8'
-                        }`}
-                      >
-                        <p className="text-white pr-7">{msg.content}</p>
-                        <p className="text-secondary-500 text-xs mt-2">
-                          {isOwn ? 'You' : 'Admin'} · {format(parseISO(msg.created_at), 'MMM d, h:mm a')}
+                      <div key={msg.id} className={`group relative p-4 rounded-2xl ${isOwn ? 'bg-gradient-to-r from-primary-500 to-primary-400 ml-10 shadow-md shadow-primary-200/50' : 'bg-white/80 border border-primary-100 shadow-sm mr-10'}`}>
+                        <p className={`pr-7 ${isOwn ? 'text-white' : 'text-primary-900'}`}>{msg.content}</p>
+                        <p className={`text-xs mt-2 ${isOwn ? 'text-primary-100/70' : 'text-primary-400'}`}>
+                          {isOwn ? 'You' : 'Mentor'} · {format(parseISO(msg.created_at), 'MMM d, h:mm a')}
                         </p>
                         {isOwn && (
-                          <button
-                            onClick={() => handleDeleteMessage(msg.id)}
-                            className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1 text-secondary-500 hover:text-red-400 transition-all"
-                            title="Delete message"
-                          >
+                          <button onClick={() => handleDeleteMessage(msg.id)} className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1 text-white/50 hover:text-white transition-all" title="Delete">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         )}
@@ -507,7 +480,6 @@ export default function DashboardPage() {
                 )}
               </div>
 
-              {/* Send Message */}
               {selectedAdmin && (
                 <form onSubmit={handleSendMessage} className="flex gap-2">
                   <input
@@ -515,13 +487,9 @@ export default function DashboardPage() {
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="Type your message..."
-                    className="flex-1 bg-secondary-800 border border-secondary-700 rounded-xl px-4 py-3 text-white placeholder-secondary-500 focus:border-primary-500 outline-none"
+                    className="flex-1 bg-white/80 border border-primary-200 rounded-2xl px-4 py-3 text-primary-900 placeholder-primary-300 focus:border-primary-400 focus:outline-none shadow-sm transition-colors"
                   />
-                  <button
-                    type="submit"
-                    disabled={sending || !newMessage.trim()}
-                    className="px-4 py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-xl disabled:opacity-50"
-                  >
+                  <button type="submit" disabled={sending || !newMessage.trim()} className="px-5 py-3 bg-gradient-to-r from-primary-500 to-primary-400 hover:from-primary-600 hover:to-primary-500 text-white rounded-2xl disabled:opacity-50 shadow-md shadow-primary-300/40 transition-all">
                     {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                   </button>
                 </form>
@@ -529,78 +497,57 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Planner Tab */}
+          {/* ── Planner ── */}
           {activeTab === 'planner' && (
             <div className="space-y-6">
-              <h1 className="font-display text-2xl font-bold text-white">Class Planner</h1>
-
+              <PageHeader title="Class Planner" subtitle="Your upcoming scheduled sessions" />
               <div className="space-y-4">
                 {classes.length === 0 ? (
-                  <div className="text-center py-12 text-secondary-400">
-                    No upcoming classes scheduled yet.
-                  </div>
+                  <EmptyState icon={CalendarDays} message="No upcoming classes scheduled yet." />
                 ) : (
-                  classes
-                    .filter((c) => parseISO(c.date) >= new Date(new Date().setHours(0, 0, 0, 0)))
-                    .map((c) => {
-                      const classDate = parseISO(c.date);
-                      let dateLabel = format(classDate, 'MMMM d, yyyy');
-                      if (isToday(classDate)) dateLabel = 'Today';
-                      else if (isTomorrow(classDate)) dateLabel = 'Tomorrow';
-
-                      return (
-                        <div
-                          key={c.id}
-                          className="flex flex-col sm:flex-row sm:items-center gap-4 p-6 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl"
-                        >
-                          <div className="flex items-center gap-4 flex-1">
-                            <div className="w-14 h-14 rounded-xl bg-primary-500/10 flex items-center justify-center">
-                              <CalendarDays className="w-7 h-7 text-primary-400" />
-                            </div>
-                            <div>
-                              <h3 className="text-white font-semibold text-lg">{c.title}</h3>
-                              {c.description && (
-                                <p className="text-secondary-400 text-sm mt-1">{c.description}</p>
-                              )}
-                            </div>
+                  classes.filter((c) => parseISO(c.date) >= new Date(new Date().setHours(0, 0, 0, 0))).map((c) => {
+                    const classDate = parseISO(c.date);
+                    let dateLabel = format(classDate, 'MMMM d, yyyy');
+                    if (isToday(classDate)) dateLabel = 'Today';
+                    else if (isTomorrow(classDate)) dateLabel = 'Tomorrow';
+                    return (
+                      <div key={c.id} className="flex flex-col sm:flex-row sm:items-center gap-4 p-6 bg-white/80 backdrop-blur-sm border border-primary-100 rounded-3xl shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5">
+                        <div className="flex items-center gap-4 flex-1">
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shadow-lg shadow-primary-300/40 shrink-0">
+                            <CalendarDays className="w-7 h-7 text-white" />
                           </div>
-                          <div className="flex flex-wrap gap-4 text-sm">
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary-700/50 rounded-lg">
-                              <Clock className="w-4 h-4 text-secondary-400" />
-                              <span className="text-white">
-                                {dateLabel} | {c.start_time} - {c.end_time}
-                              </span>
-                            </div>
-                            {c.location && (
-                              <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary-700/50 rounded-lg">
-                                <MapPin className="w-4 h-4 text-secondary-400" />
-                                <span className="text-white">{c.location}</span>
-                              </div>
-                            )}
+                          <div>
+                            <h3 className="text-primary-900 font-bold text-lg">{c.title}</h3>
+                            {c.description && <p className="text-primary-500 text-sm mt-0.5">{c.description}</p>}
                           </div>
                         </div>
-                      );
-                    })
+                        <div className="flex flex-wrap gap-2 text-sm">
+                          <span className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 border border-primary-200 rounded-xl text-primary-700">
+                            <Clock className="w-3.5 h-3.5 text-primary-400" />
+                            {dateLabel} · {c.start_time}–{c.end_time}
+                          </span>
+                          {c.location && (
+                            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 border border-primary-200 rounded-xl text-primary-700">
+                              <MapPin className="w-3.5 h-3.5 text-primary-400" />{c.location}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>
           )}
 
-          {/* Notes Tab */}
+          {/* ── Notes ── */}
           {activeTab === 'notes' && (
             <div className="space-y-6">
-              <div>
-                <h1 className="font-display text-2xl font-bold text-white">Class Notes</h1>
-                <p className="text-secondary-400 mt-1">Select a class to view or write your notes.</p>
-              </div>
-
+              <PageHeader title="Class Notes" subtitle="Select a class to view or write your notes" />
               {classes.length === 0 ? (
-                <div className="text-center py-12 text-secondary-400">
-                  No classes available yet. Notes will appear here once classes are scheduled.
-                </div>
+                <EmptyState icon={StickyNote} message="No classes available yet. Notes will appear here once classes are scheduled." />
               ) : (
                 <>
-                  {/* Class selector */}
                   <div className="flex gap-3 overflow-x-auto pb-2">
                     {classes.map((c) => {
                       const isSelected = selectedClassId === c.id;
@@ -614,18 +561,14 @@ export default function DashboardPage() {
                             const existing = notes.find((n) => n.class_id === c.id);
                             setNoteDraft(existing?.content || '');
                           }}
-                          className={`flex-shrink-0 px-5 py-3 rounded-xl border-2 transition-all text-left ${
+                          className={`flex-shrink-0 px-5 py-3 rounded-2xl border-2 transition-all text-left ${
                             isSelected
-                              ? wasAbsent
-                                ? 'bg-red-500/10 border-red-500'
-                                : 'bg-primary-500/10 border-primary-500'
-                              : wasAbsent
-                              ? 'bg-secondary-800/50 border-red-500/40'
-                              : 'bg-secondary-800/50 border-secondary-700/50 hover:border-secondary-600'
+                              ? wasAbsent ? 'bg-red-50 border-red-400 shadow-md' : 'bg-primary-500 border-primary-500 shadow-lg shadow-primary-300/40'
+                              : wasAbsent ? 'bg-white border-red-200 hover:border-red-300' : 'bg-white/80 border-primary-100 hover:border-primary-300'
                           }`}
                         >
-                          <div className="text-white font-medium whitespace-nowrap">{c.title}</div>
-                          <div className="text-secondary-400 text-xs mt-0.5">
+                          <div className={`font-semibold whitespace-nowrap text-sm ${isSelected && !wasAbsent ? 'text-white' : 'text-primary-900'}`}>{c.title}</div>
+                          <div className={`text-xs mt-0.5 ${isSelected && !wasAbsent ? 'text-primary-100' : 'text-primary-400'}`}>
                             {format(parseISO(c.date), 'MMM d, yyyy')}
                           </div>
                         </button>
@@ -633,86 +576,60 @@ export default function DashboardPage() {
                     })}
                   </div>
 
-                  {/* Selected class notes panel */}
                   {selectedClassId ? (
                     (() => {
                       const selectedClass = classes.find((c) => c.id === selectedClassId)!;
                       const att = attendance.find((a) => a.class_id === selectedClassId);
                       const wasAbsent = att?.status === 'absent';
                       return (
-                        <div
-                          className={`p-6 rounded-2xl border-2 ${
-                            wasAbsent ? 'bg-red-500/5 border-red-500/60' : 'bg-secondary-800/50 border-secondary-700/50'
-                          }`}
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                        <div className={`p-6 rounded-3xl border-2 bg-white/80 backdrop-blur-sm shadow-sm ${wasAbsent ? 'border-red-200' : 'border-primary-100'}`}>
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
                             <div>
-                              <h2 className="font-display text-xl font-bold text-white">{selectedClass.title}</h2>
-                              <div className="flex items-center gap-3 mt-1 text-sm text-secondary-400">
+                              <h2 className="font-display text-xl font-bold text-primary-900">{selectedClass.title}</h2>
+                              <div className="flex items-center gap-3 mt-1 text-sm text-primary-400">
                                 <span>{format(parseISO(selectedClass.date), 'EEEE, MMM d, yyyy')}</span>
-                                <span className="flex items-center gap-1">
-                                  <Clock className="w-3.5 h-3.5" />
-                                  {selectedClass.start_time} - {selectedClass.end_time}
-                                </span>
-                                {selectedClass.location && (
-                                  <span className="flex items-center gap-1">
-                                    <MapPin className="w-3.5 h-3.5" />
-                                    {selectedClass.location}
-                                  </span>
-                                )}
+                                <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{selectedClass.start_time}–{selectedClass.end_time}</span>
+                                {selectedClass.location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{selectedClass.location}</span>}
                               </div>
                             </div>
                           </div>
 
-                          {/* Absence warning */}
                           {wasAbsent && (
-                            <div className="mb-4 flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
-                              <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
+                            <div className="mb-5 flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl">
+                              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
                                 <AlertCircle className="w-5 h-5 text-red-400" />
                               </div>
                               <div>
-                                <p className="text-red-300 font-medium">You missed this class</p>
-                                <p className="text-red-400/70 text-sm">
-                                  You were marked absent. Review the class materials and catch up on what you missed.
-                                </p>
+                                <p className="text-red-700 font-semibold">You missed this class</p>
+                                <p className="text-red-500 text-sm">Review the materials below and catch up on what you missed.</p>
                               </div>
                             </div>
                           )}
 
-                          {/* Attendance status badge (non-absent) */}
                           {att && !wasAbsent && (
-                            <div
-                              className={`mb-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium ${
-                                att.status === 'present'
-                                  ? 'bg-green-500/10 text-green-400'
-                                  : att.status === 'late'
-                                  ? 'bg-yellow-500/10 text-yellow-400'
-                                  : 'bg-blue-500/10 text-blue-400'
-                              }`}
-                            >
+                            <div className={`mb-5 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold ${
+                              att.status === 'present' ? 'bg-accent-50 text-accent-700 border border-accent-200'
+                              : att.status === 'late' ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : 'bg-sky-50 text-sky-700 border border-sky-200'
+                            }`}>
                               <CheckCircle2 className="w-4 h-4" />
-                              {att.status === 'present'
-                                ? 'You attended this class'
-                                : att.status === 'late'
-                                ? 'You were late to this class'
-                                : 'Your absence was excused'}
+                              {att.status === 'present' ? 'You attended this class' : att.status === 'late' ? 'You were late' : 'Absence excused'}
                             </div>
                           )}
 
-                          {/* Notes textarea */}
                           <div>
-                            <label className="block text-sm font-medium text-secondary-300 mb-2">Your Notes</label>
+                            <label className="block text-xs font-semibold text-primary-500 uppercase tracking-wider mb-2">Your Notes</label>
                             <textarea
                               value={noteDraft}
                               onChange={(e) => setNoteDraft(e.target.value)}
                               rows={10}
                               placeholder="Write your notes for this class here..."
-                              className="w-full bg-secondary-900 border border-secondary-700 rounded-xl px-4 py-3 text-white placeholder-secondary-500 focus:border-primary-500 focus:outline-none resize-y"
+                              className="w-full bg-primary-50/50 border border-primary-200 rounded-2xl px-4 py-3 text-primary-900 placeholder-primary-300 focus:border-primary-400 focus:outline-none resize-y transition-colors text-sm"
                             />
                             <div className="flex items-center justify-between mt-3">
-                              <p className="text-secondary-500 text-xs">
+                              <p className="text-primary-400 text-xs">
                                 {notes.find((n) => n.class_id === selectedClassId)
-                                  ? `Last updated ${format(parseISO(notes.find((n) => n.class_id === selectedClassId)!.updated_at), 'MMM d, yyyy h:mm a')}`
+                                  ? `Saved ${format(parseISO(notes.find((n) => n.class_id === selectedClassId)!.updated_at), 'MMM d, h:mm a')}`
                                   : 'Not saved yet'}
                               </p>
                               <button
@@ -722,16 +639,9 @@ export default function DashboardPage() {
                                   try {
                                     const existing = notes.find((n) => n.class_id === selectedClassId);
                                     if (existing) {
-                                      await supabase
-                                        .from('notes')
-                                        .update({ content: noteDraft, updated_at: new Date().toISOString() })
-                                        .eq('id', existing.id);
+                                      await supabase.from('notes').update({ content: noteDraft, updated_at: new Date().toISOString() }).eq('id', existing.id);
                                     } else {
-                                      await supabase.from('notes').insert({
-                                        class_id: selectedClassId,
-                                        student_id: profile.id,
-                                        content: noteDraft,
-                                      });
+                                      await supabase.from('notes').insert({ class_id: selectedClassId, student_id: profile.id, content: noteDraft });
                                     }
                                     fetchDashboardData();
                                   } catch (error) {
@@ -741,67 +651,46 @@ export default function DashboardPage() {
                                   }
                                 }}
                                 disabled={noteSaving}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium disabled:opacity-50 transition-colors"
+                                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-400 hover:from-primary-600 hover:to-primary-500 text-white rounded-xl font-semibold disabled:opacity-50 transition-all shadow-md shadow-primary-300/40 text-sm"
                               >
-                                {noteSaving ? (
-                                  <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
-                                ) : (
-                                  <><Save className="w-4 h-4" /> Save Notes</>
-                                )}
+                                {noteSaving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : <><Save className="w-4 h-4" /> Save Notes</>}
                               </button>
                             </div>
                           </div>
 
-                          {/* Class materials uploaded by admin */}
                           {(() => {
                             const materials = classNoteFiles.filter((f) => f.class_id === selectedClassId);
                             if (materials.length === 0) return null;
-                            const getUrl = (path: string) => {
-                              const { data } = supabase.storage.from('class-notes').getPublicUrl(path);
-                              return data.publicUrl;
-                            };
-                            const fmtSize = (bytes: number) => {
-                              if (bytes < 1024) return `${bytes} B`;
-                              if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-                              return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-                            };
+                            const getUrl = (path: string) => supabase.storage.from('class-notes').getPublicUrl(path).data.publicUrl;
+                            const fmtSize = (bytes: number) => bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
                             const fIcon = (type: string) => {
-                              if (type.startsWith('image/')) return <File className="w-4 h-4 text-blue-400" />;
+                              if (type.startsWith('image/')) return <File className="w-4 h-4 text-sky-400" />;
                               if (type === 'application/pdf') return <FileText className="w-4 h-4 text-red-400" />;
                               if (type.includes('presentation') || type.includes('powerpoint')) return <FileText className="w-4 h-4 text-orange-400" />;
-                              if (type.includes('word') || type.includes('document')) return <FileText className="w-4 h-4 text-blue-300" />;
-                              return <File className="w-4 h-4 text-secondary-400" />;
+                              if (type.includes('word') || type.includes('document')) return <FileText className="w-4 h-4 text-blue-400" />;
+                              return <File className="w-4 h-4 text-primary-400" />;
                             };
                             return (
-                              <div className="mt-6 pt-6 border-t border-secondary-700/50">
-                                <h3 className="text-white font-semibold mb-3">
-                                  Class Materials
-                                  <span className="ml-2 text-sm font-normal text-secondary-400">({materials.length})</span>
-                                </h3>
-                                <div className="space-y-2.5">
+                              <div className="mt-6 pt-6 border-t border-primary-100">
+                                <h3 className="text-primary-900 font-bold mb-3">Class Materials <span className="text-sm font-normal text-primary-400">({materials.length})</span></h3>
+                                <div className="space-y-2">
                                   {materials.map((file) => {
                                     const url = getUrl(file.file_path);
                                     return (
-                                      <div key={file.id} className="flex items-center gap-3 p-3 bg-secondary-900/50 border border-secondary-700/30 rounded-xl">
+                                      <div key={file.id} className="flex items-center gap-3 p-3 bg-primary-50 border border-primary-100 rounded-xl">
                                         {file.file_type.startsWith('image/') ? (
                                           <img src={url} alt={file.title} className="w-10 h-10 object-cover rounded-lg shrink-0" />
                                         ) : (
-                                          <div className="w-10 h-10 rounded-lg bg-secondary-700 flex items-center justify-center shrink-0">
-                                            {fIcon(file.file_type)}
-                                          </div>
+                                          <div className="w-10 h-10 rounded-xl bg-white border border-primary-100 flex items-center justify-center shrink-0 shadow-sm">{fIcon(file.file_type)}</div>
                                         )}
                                         <div className="flex-1 min-w-0">
-                                          <p className="text-white text-sm font-medium truncate">{file.title}</p>
-                                          {file.description && <p className="text-secondary-400 text-xs truncate">{file.description}</p>}
-                                          <p className="text-secondary-500 text-xs">{fmtSize(file.file_size)}</p>
+                                          <p className="text-primary-900 text-sm font-semibold truncate">{file.title}</p>
+                                          {file.description && <p className="text-primary-500 text-xs truncate">{file.description}</p>}
+                                          <p className="text-primary-400 text-xs">{fmtSize(file.file_size)}</p>
                                         </div>
                                         <div className="flex items-center gap-1 shrink-0">
-                                          <a href={url} target="_blank" rel="noopener noreferrer" className="p-2 text-secondary-400 hover:text-primary-400 transition-colors" title="Open">
-                                            <ExternalLink className="w-4 h-4" />
-                                          </a>
-                                          <a href={url} download={file.file_name} className="p-2 text-secondary-400 hover:text-primary-400 transition-colors" title="Download">
-                                            <Download className="w-4 h-4" />
-                                          </a>
+                                          <a href={url} target="_blank" rel="noopener noreferrer" className="p-2 text-primary-400 hover:text-primary-600 transition-colors" title="Open"><ExternalLink className="w-4 h-4" /></a>
+                                          <a href={url} download={file.file_name} className="p-2 text-primary-400 hover:text-primary-600 transition-colors" title="Download"><Download className="w-4 h-4" /></a>
                                         </div>
                                       </div>
                                     );
@@ -814,9 +703,9 @@ export default function DashboardPage() {
                       );
                     })()
                   ) : (
-                    <div className="text-center py-16 text-secondary-400">
+                    <div className="text-center py-16 text-primary-300">
                       <StickyNote className="w-12 h-12 mx-auto mb-3 opacity-40" />
-                      <p>Select a class above to view or write your notes</p>
+                      <p className="text-primary-500">Select a class above to view or write your notes</p>
                     </div>
                   )}
                 </>
@@ -824,36 +713,26 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Announcements Tab */}
+          {/* ── Announcements ── */}
           {activeTab === 'announcements' && (
             <div className="space-y-6">
-              <h1 className="font-display text-2xl font-bold text-white">Announcements</h1>
-
+              <PageHeader title="Announcements" subtitle="Updates and notices from your mentors" />
               <div className="space-y-4">
                 {announcements.length === 0 ? (
-                  <div className="text-center py-12 text-secondary-400">No announcements yet.</div>
+                  <EmptyState icon={Bell} message="No announcements yet." />
                 ) : (
                   announcements.map((a) => (
-                    <div
-                      key={a.id}
-                      className={`p-6 rounded-2xl border ${
-                        a.priority === 'high'
-                          ? 'bg-red-500/10 border-red-500/20'
-                          : a.priority === 'low'
-                          ? 'bg-secondary-800/30 border-secondary-700/30'
-                          : 'bg-secondary-800/50 border-secondary-700/50'
-                      }`}
-                    >
+                    <div key={a.id} className={`p-6 rounded-3xl border shadow-sm ${
+                      a.priority === 'high' ? 'bg-red-50 border-red-200'
+                      : a.priority === 'low' ? 'bg-white/60 border-primary-50'
+                      : 'bg-white/80 border-primary-100'
+                    }`}>
                       <div className="flex items-start gap-4">
-                        {a.priority === 'high' && (
-                          <AlertTriangle className="w-6 h-6 text-red-400 flex-shrink-0" />
-                        )}
+                        {a.priority === 'high' && <AlertTriangle className="w-6 h-6 text-red-400 flex-shrink-0 mt-0.5" />}
                         <div>
-                          <h3 className="text-white font-semibold text-lg">{a.title}</h3>
-                          <p className="text-secondary-300 mt-2 whitespace-pre-wrap">{a.content}</p>
-                          <p className="text-secondary-500 text-sm mt-3">
-                            {format(parseISO(a.created_at), 'MMMM d, yyyy')}
-                          </p>
+                          <h3 className="text-primary-900 font-bold text-lg">{a.title}</h3>
+                          <p className="text-primary-600/70 mt-2 whitespace-pre-wrap">{a.content}</p>
+                          <p className="text-primary-400 text-sm mt-3">{format(parseISO(a.created_at), 'MMMM d, yyyy')}</p>
                         </div>
                       </div>
                     </div>
@@ -863,21 +742,14 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Polls Tab */}
+          {/* ── Polls ── */}
           {activeTab === 'polls' && (
             <div className="space-y-6">
-              <div>
-                <h1 className="font-display text-2xl font-bold text-white">Polls</h1>
-                <p className="text-secondary-400 mt-1">Vote on polls created by your mentors.</p>
-              </div>
-
+              <PageHeader title="Polls" subtitle="Vote on polls created by your mentors" />
               {polls.length === 0 ? (
-                <div className="text-center py-16 text-secondary-400">
-                  <BarChart2 className="w-12 h-12 mx-auto mb-3 opacity-40" />
-                  <p>No active polls right now. Check back later!</p>
-                </div>
+                <EmptyState icon={BarChart2} message="No active polls right now. Check back later!" />
               ) : (
-                <div className="space-y-6">
+                <div className="space-y-5">
                   {polls.map((poll) => {
                     const options = pollOptions.filter((o) => o.poll_id === poll.id).sort((a, b) => a.display_order - b.display_order);
                     const myPollVotes = myVotes.filter((v) => v.poll_id === poll.id);
@@ -888,82 +760,65 @@ export default function DashboardPage() {
                     const isExpanding = votingPollId === poll.id;
 
                     return (
-                      <div key={poll.id} className="p-6 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
-                        <div className="flex items-start gap-3 mb-4">
-                          <div className="w-10 h-10 rounded-xl bg-primary-500/10 flex items-center justify-center shrink-0">
-                            <BarChart2 className="w-5 h-5 text-primary-400" />
+                      <div key={poll.id} className="p-6 bg-white/80 backdrop-blur-sm border border-primary-100 rounded-3xl shadow-sm hover:shadow-md transition-all">
+                        <div className="flex items-start gap-3 mb-5">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shadow-md shadow-primary-300/40 shrink-0">
+                            <BarChart2 className="w-5 h-5 text-white" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="text-white font-semibold text-lg leading-tight">{poll.question}</h3>
-                            {poll.description && <p className="text-secondary-400 text-sm mt-1">{poll.description}</p>}
+                            <h3 className="text-primary-900 font-bold text-lg leading-tight">{poll.question}</h3>
+                            {poll.description && <p className="text-primary-500 text-sm mt-1">{poll.description}</p>}
                           </div>
                           <div className="flex flex-col items-end gap-1.5 shrink-0">
-                            {!hasVoted && (
-                              <span className="px-2.5 py-1 bg-amber-500/20 text-amber-400 rounded-full text-xs font-medium">New</span>
-                            )}
-                            {canVoteAgain && (
-                              <span className="px-2.5 py-1 bg-blue-500/20 text-blue-400 rounded-full text-xs font-medium">Multi-vote</span>
-                            )}
+                            {!hasVoted && <span className="px-2.5 py-1 bg-amber-100 text-amber-600 rounded-full text-xs font-semibold">New</span>}
+                            {canVoteAgain && <span className="px-2.5 py-1 bg-sky-100 text-sky-600 rounded-full text-xs font-semibold">Multi-vote</span>}
                           </div>
                         </div>
 
-                        {/* For multi-vote polls that have been voted on: show last vote status */}
                         {hasVoted && canVoteAgain && (
-                          <div className="mb-3 flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-                            <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />
-                            <p className="text-blue-300 text-sm">
-                              Last vote: <span className="font-medium text-white">{options.find((o) => o.id === myLastVote?.option_id)?.option_text}</span>
-                              <span className="text-blue-400 ml-2">· {myPollVotes.length} vote{myPollVotes.length !== 1 ? 's' : ''} cast</span>
+                          <div className="mb-4 flex items-center gap-2 px-4 py-2.5 bg-sky-50 border border-sky-200 rounded-xl">
+                            <CheckCircle2 className="w-4 h-4 text-sky-500 shrink-0" />
+                            <p className="text-sky-700 text-sm">
+                              Last vote: <span className="font-semibold text-primary-900">{options.find((o) => o.id === myLastVote?.option_id)?.option_text}</span>
+                              <span className="text-sky-500 ml-2">· {myPollVotes.length} vote{myPollVotes.length !== 1 ? 's' : ''}</span>
                             </p>
                           </div>
                         )}
 
                         {!showVotingUI ? (
-                          /* Read-only results for single-vote polls */
                           <div className="space-y-2">
                             {options.map((opt) => {
                               const isMyChoice = opt.id === myLastVote?.option_id;
                               return (
-                                <div
-                                  key={opt.id}
-                                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 ${
-                                    isMyChoice
-                                      ? 'border-primary-500 bg-primary-500/10'
-                                      : 'border-secondary-700/30 bg-secondary-900/30'
-                                  }`}
-                                >
-                                  <div className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${isMyChoice ? 'border-primary-500' : 'border-secondary-600'}`}>
+                                <div key={opt.id} className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 ${isMyChoice ? 'border-primary-400 bg-primary-50' : 'border-primary-100 bg-primary-50/30'}`}>
+                                  <div className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${isMyChoice ? 'border-primary-500' : 'border-primary-200'}`}>
                                     {isMyChoice && <div className="w-2 h-2 rounded-full bg-primary-500" />}
                                   </div>
-                                  <span className={`text-sm font-medium ${isMyChoice ? 'text-white' : 'text-secondary-400'}`}>{opt.option_text}</span>
-                                  {isMyChoice && <CheckCircle2 className="w-4 h-4 text-primary-400 ml-auto shrink-0" />}
+                                  <span className={`text-sm font-medium ${isMyChoice ? 'text-primary-900' : 'text-primary-500'}`}>{opt.option_text}</span>
+                                  {isMyChoice && <CheckCircle2 className="w-4 h-4 text-primary-500 ml-auto shrink-0" />}
                                 </div>
                               );
                             })}
-                            <p className="text-secondary-500 text-xs mt-1">Your vote has been recorded.</p>
+                            <p className="text-primary-400 text-xs mt-1">Your vote has been recorded.</p>
                           </div>
                         ) : (
-                          /* Voting UI (first-time or multi-vote re-vote) */
                           <div className="space-y-2">
                             {options.map((opt) => {
                               const isSelected = selectedOptionId === opt.id && isExpanding;
                               return (
                                 <button
                                   key={opt.id}
-                                  onClick={() => {
-                                    setVotingPollId(poll.id);
-                                    setSelectedOptionId(opt.id);
-                                  }}
+                                  onClick={() => { setVotingPollId(poll.id); setSelectedOptionId(opt.id); }}
                                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all ${
                                     isSelected
-                                      ? 'border-primary-500 bg-primary-500/10 text-white'
-                                      : 'border-secondary-700/50 bg-secondary-900/50 text-secondary-300 hover:border-secondary-600 hover:text-white'
+                                      ? 'border-primary-400 bg-primary-50 text-primary-900'
+                                      : 'border-primary-100 bg-primary-50/30 text-primary-600 hover:border-primary-300 hover:bg-primary-50'
                                   }`}
                                 >
-                                  <div className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${isSelected ? 'border-primary-500' : 'border-secondary-600'}`}>
+                                  <div className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${isSelected ? 'border-primary-500' : 'border-primary-300'}`}>
                                     {isSelected && <div className="w-2 h-2 rounded-full bg-primary-500" />}
                                   </div>
-                                  <span className="font-medium">{opt.option_text}</span>
+                                  <span className="font-medium text-sm">{opt.option_text}</span>
                                 </button>
                               );
                             })}
@@ -973,16 +828,8 @@ export default function DashboardPage() {
                                   if (!profile || !selectedOptionId) return;
                                   setPollSubmitting(true);
                                   try {
-                                    const { error } = await supabase.from('poll_votes').insert({
-                                      poll_id: poll.id,
-                                      option_id: selectedOptionId,
-                                      student_id: profile.id,
-                                    });
-                                    if (!error) {
-                                      setSelectedOptionId(null);
-                                      setVotingPollId(null);
-                                      fetchDashboardData();
-                                    }
+                                    const { error } = await supabase.from('poll_votes').insert({ poll_id: poll.id, option_id: selectedOptionId, student_id: profile.id });
+                                    if (!error) { setSelectedOptionId(null); setVotingPollId(null); fetchDashboardData(); }
                                   } catch (err) {
                                     console.error('Error submitting vote:', err);
                                   } finally {
@@ -990,15 +837,9 @@ export default function DashboardPage() {
                                   }
                                 }}
                                 disabled={pollSubmitting}
-                                className="w-full mt-1 py-2.5 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                className="w-full mt-1 py-3 bg-gradient-to-r from-primary-500 to-primary-400 hover:from-primary-600 hover:to-primary-500 text-white font-semibold rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-md shadow-primary-300/40"
                               >
-                                {pollSubmitting ? (
-                                  <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
-                                ) : canVoteAgain && hasVoted ? (
-                                  'Vote Again'
-                                ) : (
-                                  'Submit Vote'
-                                )}
+                                {pollSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</> : canVoteAgain && hasVoted ? 'Vote Again' : 'Submit Vote'}
                               </button>
                             )}
                           </div>
@@ -1011,7 +852,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Settings Tab */}
+          {/* ── Settings ── */}
           {activeTab === 'settings' && (
             <SettingsTab profile={profile!} onUpdate={fetchDashboardData} />
           )}
@@ -1021,7 +862,24 @@ export default function DashboardPage() {
   );
 }
 
-// Settings Tab Component
+function PageHeader({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div className="mb-2">
+      <h1 className="font-display text-2xl font-bold text-primary-900">{title}</h1>
+      <p className="text-primary-500 mt-1 text-sm">{subtitle}</p>
+    </div>
+  );
+}
+
+function EmptyState({ icon: Icon, message }: { icon: React.ElementType; message: string }) {
+  return (
+    <div className="text-center py-16 bg-white/60 rounded-3xl border border-primary-100">
+      <Icon className="w-10 h-10 mx-auto mb-3 text-primary-200" />
+      <p className="text-primary-400 text-sm">{message}</p>
+    </div>
+  );
+}
+
 function SettingsTab({ profile, onUpdate }: { profile: NonNullable<ReturnType<typeof useAuth>['profile']>; onUpdate: () => void }) {
   const [form, setForm] = useState({ full_name: profile.full_name, email: profile.email, phone: profile.phone || '' });
   const [saving, setSaving] = useState(false);
@@ -1039,20 +897,13 @@ function SettingsTab({ profile, onUpdate }: { profile: NonNullable<ReturnType<ty
     setSuccess(false);
     try {
       const updates: Record<string, string | null> = { full_name: form.full_name.trim() };
-      if (form.phone.trim()) updates.phone = form.phone.trim();
-      else updates.phone = null;
-
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', profile.id);
+      updates.phone = form.phone.trim() || null;
+      const { error: updateError } = await supabase.from('profiles').update(updates).eq('id', profile.id);
       if (updateError) throw updateError;
-
       if (form.email !== profile.email) {
         const { error: authError } = await supabase.auth.updateUser({ email: form.email.trim() });
         if (authError) throw new Error('Email update pending. Check your inbox to confirm the change.');
       }
-
       setSuccess(true);
       onUpdate();
       setTimeout(() => setSuccess(false), 3000);
@@ -1063,77 +914,48 @@ function SettingsTab({ profile, onUpdate }: { profile: NonNullable<ReturnType<ty
     }
   }
 
-  const inputCls = 'w-full bg-secondary-900 border border-secondary-700 rounded-xl px-4 py-3 text-white placeholder-secondary-500 focus:border-primary-500 focus:outline-none transition-colors';
+  const inputCls = 'w-full bg-primary-50/50 border border-primary-200 rounded-2xl px-4 py-3 text-primary-900 placeholder-primary-300 focus:border-primary-400 focus:outline-none transition-colors text-sm';
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-white">Account Settings</h1>
-        <p className="text-secondary-400 mt-1">Update your profile information and credentials.</p>
-      </div>
-
-      <div className="bg-secondary-800/50 border border-secondary-700/50 rounded-2xl p-6 max-w-xl">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-12 h-12 rounded-full bg-primary-500/20 flex items-center justify-center">
-            <User className="w-6 h-6 text-primary-400" />
+      <PageHeader title="Account Settings" subtitle="Update your profile information and credentials." />
+      <div className="bg-white/80 backdrop-blur-sm border border-primary-100 rounded-3xl p-6 max-w-xl shadow-sm">
+        <div className="flex items-center gap-4 mb-6 p-4 bg-gradient-to-r from-primary-50 to-sky-50 rounded-2xl border border-primary-100">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shadow-md shadow-primary-300/40">
+            <User className="w-6 h-6 text-white" />
           </div>
           <div>
-            <p className="text-white font-semibold">{profile.full_name}</p>
-            <p className="text-secondary-400 text-sm">{profile.email}</p>
+            <p className="text-primary-900 font-bold">{profile.full_name}</p>
+            <p className="text-primary-400 text-sm">{profile.email}</p>
           </div>
         </div>
 
-        {error && (
-          <div className="mb-5 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">{error}</div>
-        )}
+        {error && <div className="mb-5 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-600 text-sm">{error}</div>}
         {success && (
-          <div className="mb-5 p-4 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 text-sm flex items-center gap-2">
+          <div className="mb-5 p-4 bg-accent-50 border border-accent-200 rounded-2xl text-accent-700 text-sm flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4" /> Settings saved successfully!
           </div>
         )}
 
         <form onSubmit={handleSave} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-secondary-300 mb-2">Full Name</label>
-            <input
-              type="text"
-              value={form.full_name}
-              onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-              required
-              className={inputCls}
-            />
+            <label className="block text-xs font-semibold text-primary-500 uppercase tracking-wider mb-2">Full Name</label>
+            <input type="text" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required className={inputCls} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-secondary-300 mb-2">Email Address</label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              required
-              className={inputCls}
-            />
+            <label className="block text-xs font-semibold text-primary-500 uppercase tracking-wider mb-2">Email Address</label>
+            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required className={inputCls} />
             {form.email !== profile.email && (
-              <p className="text-yellow-400 text-xs mt-2 flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                You'll need to confirm the new email address before it takes effect.
+              <p className="text-amber-500 text-xs mt-2 flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5" /> You'll need to confirm the new email before it takes effect.
               </p>
             )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-secondary-300 mb-2">Phone Number</label>
-            <input
-              type="tel"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              placeholder="+91 9876543210"
-              className={inputCls}
-            />
+            <label className="block text-xs font-semibold text-primary-500 uppercase tracking-wider mb-2">Phone Number</label>
+            <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+91 9876543210" className={inputCls} />
           </div>
-          <button
-            type="submit"
-            disabled={saving}
-            className="w-full py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-xl font-medium disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-          >
+          <button type="submit" disabled={saving} className="w-full py-3 bg-gradient-to-r from-primary-500 to-primary-400 hover:from-primary-600 hover:to-primary-500 text-white rounded-2xl font-semibold disabled:opacity-50 transition-all shadow-md shadow-primary-300/40 flex items-center justify-center gap-2">
             {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : <><Save className="w-4 h-4" /> Save Changes</>}
           </button>
         </form>
@@ -1141,4 +963,3 @@ function SettingsTab({ profile, onUpdate }: { profile: NonNullable<ReturnType<ty
     </div>
   );
 }
-

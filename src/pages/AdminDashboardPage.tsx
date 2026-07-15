@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth, Profile } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Project, Announcement, Class, Message, Attendance, AttendanceStatus, ClassNoteFile, Poll, PollOption, PollVote } from '../types/database';
+import { Project, ProjectStudent, Announcement, Class, Message, Attendance, AttendanceStatus, ClassNoteFile, Poll, PollOption, PollVote } from '../types/database';
 import {
   LayoutDashboard,
   Users,
@@ -44,7 +44,8 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   const [students, setStudents] = useState<Profile[]>([]);
-  const [projects, setProjects] = useState<(Project & { profiles: Profile })[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectStudents, setProjectStudents] = useState<ProjectStudent[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [messages, setMessages] = useState<(Message & { sender?: Profile; receiver?: Profile })[]>([]);
@@ -55,17 +56,14 @@ export default function AdminDashboardPage() {
   const [pollOptions, setPollOptions] = useState<PollOption[]>([]);
   const [pollVotes, setPollVotes] = useState<PollVote[]>([]);
 
-  useEffect(() => {
-    if (profile && profile.role === 'admin') {
-      fetchAdminData();
-    }
-  }, [profile]);
+  const fetchAdminDataRef = useRef<() => void>(() => {});
 
-  async function fetchAdminData() {
+  const fetchAdminData = useCallback(async () => {
     try {
-      const [studentsRes, projectsRes, announcementsRes, classesRes, messagesRes, attendanceRes, classNoteFilesRes, pollsRes, pollOptionsRes, pollVotesRes] = await Promise.all([
+      const [studentsRes, projectsRes, projectStudentsRes, announcementsRes, classesRes, messagesRes, attendanceRes, classNoteFilesRes, pollsRes, pollOptionsRes, pollVotesRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('role', 'student').order('created_at', { ascending: false }),
-        supabase.from('projects').select('*, profiles!projects_student_id_fkey(*)').order('created_at', { ascending: false }),
+        supabase.from('projects').select('*').order('created_at', { ascending: false }),
+        supabase.from('project_students').select('*'),
         supabase.from('announcements').select('*').order('created_at', { ascending: false }),
         supabase.from('classes').select('*').order('date', { ascending: true }),
         supabase.from('messages').select('*, sender:profiles!messages_sender_id_fkey(*), receiver:profiles!messages_receiver_id_fkey(*)').or(`sender_id.eq.${profile!.id},receiver_id.eq.${profile!.id}`).order('created_at', { ascending: false }),
@@ -78,6 +76,7 @@ export default function AdminDashboardPage() {
 
       setStudents(studentsRes.data || []);
       setProjects(projectsRes.data || []);
+      setProjectStudents(projectStudentsRes.data || []);
       setAnnouncements(announcementsRes.data || []);
       setClasses(classesRes.data || []);
       setMessages(messagesRes.data || []);
@@ -94,12 +93,34 @@ export default function AdminDashboardPage() {
         pendingMessages: messagesRes.data?.filter((m) => !m.read_at).length || 0,
         upcomingClasses: classesRes.data?.filter((c) => parseISO(c.date) >= today).length || 0,
       });
-    } catch (error) {
-      console.error('Error fetching admin data:', error);
+    } catch (err) {
+      console.error('Error fetching admin data:', err);
     } finally {
       setLoading(false);
     }
-  }
+  }, [profile]);
+
+  useEffect(() => {
+    fetchAdminDataRef.current = fetchAdminData;
+  });
+
+  useEffect(() => {
+    if (!profile || profile.role !== 'admin') return;
+    fetchAdminData();
+
+    const channel = supabase
+      .channel('admin-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, () => fetchAdminDataRef.current())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'classes' }, () => fetchAdminDataRef.current())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => fetchAdminDataRef.current())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => fetchAdminDataRef.current())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => fetchAdminDataRef.current())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'polls' }, () => fetchAdminDataRef.current())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'poll_votes' }, () => fetchAdminDataRef.current())
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [profile])
 
   const sidebarItems = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -278,7 +299,7 @@ export default function AdminDashboardPage() {
 
           {/* Projects Tab */}
           {activeTab === 'projects' && (
-            <ProjectManagement projects={projects} students={students} onUpdate={fetchAdminData} />
+            <ProjectManagement projects={projects} projectStudents={projectStudents} students={students} onUpdate={fetchAdminData} />
           )}
 
           {/* Messages Tab */}
@@ -582,10 +603,12 @@ function UserManagement({ students, onUpdate }: { students: Profile[]; onUpdate:
 // Project Management Component
 function ProjectManagement({
   projects,
+  projectStudents,
   students,
   onUpdate,
 }: {
-  projects: (Project & { profiles: Profile })[];
+  projects: Project[];
+  projectStudents: ProjectStudent[];
   students: Profile[];
   onUpdate: () => void;
 }) {
@@ -594,28 +617,64 @@ function ProjectManagement({
   const [newForm, setNewForm] = useState({
     title: '',
     description: '',
-    student_id: '',
+    student_ids: [] as string[],
     due_date: '',
   });
   const [editForm, setEditForm] = useState({
     mentor_notes: '',
     status: 'not_started' as Project['status'],
+    student_ids: [] as string[],
   });
   const [saving, setSaving] = useState(false);
 
+  function toggleStudent(formType: 'new' | 'edit', studentId: string) {
+    if (formType === 'new') {
+      setNewForm(prev => ({
+        ...prev,
+        student_ids: prev.student_ids.includes(studentId)
+          ? prev.student_ids.filter(id => id !== studentId)
+          : [...prev.student_ids, studentId]
+      }));
+    } else {
+      setEditForm(prev => ({
+        ...prev,
+        student_ids: prev.student_ids.includes(studentId)
+          ? prev.student_ids.filter(id => id !== studentId)
+          : [...prev.student_ids, studentId]
+      }));
+    }
+  }
+
   async function handleCreateProject(e: React.FormEvent) {
     e.preventDefault();
+    if (newForm.student_ids.length === 0) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from('projects').insert({
-        title: newForm.title,
-        description: newForm.description,
-        student_id: newForm.student_id,
-        due_date: newForm.due_date || null,
-        status: 'not_started',
-      });
-      if (error) throw error;
-      setNewForm({ title: '', description: '', student_id: '', due_date: '' });
+      const { data: project, error: projectError } = await supabase
+        .from('projects')
+        .insert({
+          title: newForm.title,
+          description: newForm.description,
+          due_date: newForm.due_date || null,
+          status: 'not_started',
+        })
+        .select()
+        .single();
+
+      if (projectError) throw projectError;
+
+      const studentAssignments = newForm.student_ids.map(studentId => ({
+        project_id: project.id,
+        student_id: studentId,
+      }));
+
+      const { error: assignmentError } = await supabase
+        .from('project_students')
+        .insert(studentAssignments);
+
+      if (assignmentError) throw assignmentError;
+
+      setNewForm({ title: '', description: '', student_ids: [], due_date: '' });
       setShowNewProject(false);
       onUpdate();
     } catch (error) {
@@ -629,11 +688,32 @@ function ProjectManagement({
     if (!editingProject) return;
     setSaving(true);
     try {
-      const { error } = await supabase
+      await supabase
         .from('projects')
         .update({ mentor_notes: editForm.mentor_notes, status: editForm.status })
         .eq('id', editingProject.id);
-      if (error) throw error;
+
+      const currentAssignments = projectStudents
+        .filter(ps => ps.project_id === editingProject.id)
+        .map(ps => ps.student_id);
+
+      const toAdd = editForm.student_ids.filter(id => !currentAssignments.includes(id));
+      const toRemove = currentAssignments.filter(id => !editForm.student_ids.includes(id));
+
+      if (toAdd.length > 0) {
+        await supabase
+          .from('project_students')
+          .insert(toAdd.map(student_id => ({ project_id: editingProject.id, student_id })));
+      }
+
+      if (toRemove.length > 0) {
+        await supabase
+          .from('project_students')
+          .delete()
+          .eq('project_id', editingProject.id)
+          .in('student_id', toRemove);
+      }
+
       setEditingProject(null);
       onUpdate();
     } catch (error) {
@@ -654,6 +734,13 @@ function ProjectManagement({
     }
   }
 
+  function getProjectStudents(projectId: string): Profile[] {
+    const studentIds = projectStudents
+      .filter(ps => ps.project_id === projectId)
+      .map(ps => ps.student_id);
+    return students.filter(s => studentIds.includes(s.id));
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -669,8 +756,8 @@ function ProjectManagement({
 
       {/* New Project Modal */}
       {showNewProject && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-secondary-800 border border-secondary-700 rounded-2xl p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-secondary-800 border border-secondary-700 rounded-2xl p-6 w-full max-w-md my-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-xl font-bold text-white">Assign New Project</h2>
               <button onClick={() => setShowNewProject(false)} className="text-secondary-400 hover:text-white">
@@ -698,20 +785,34 @@ function ProjectManagement({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-secondary-300 mb-2">Assign to Student</label>
-                <select
-                  value={newForm.student_id}
-                  onChange={(e) => setNewForm({ ...newForm, student_id: e.target.value })}
-                  required
-                  className="w-full bg-secondary-900 border border-secondary-700 rounded-lg px-4 py-2 text-white"
-                >
-                  <option value="">Select a student</option>
-                  {students.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.full_name} ({s.email})
-                    </option>
-                  ))}
-                </select>
+                <label className="block text-sm font-medium text-secondary-300 mb-2">
+                  Assign to Students
+                  {newForm.student_ids.length > 0 && (
+                    <span className="ml-2 text-primary-400">({newForm.student_ids.length} selected)</span>
+                  )}
+                </label>
+                <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-3 bg-secondary-900 border border-secondary-700 rounded-lg">
+                  {students.map((s) => {
+                    const isSelected = newForm.student_ids.includes(s.id);
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => toggleStudent('new', s.id)}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                          isSelected
+                            ? 'bg-primary-500 text-white'
+                            : 'bg-secondary-700 text-secondary-300 hover:bg-secondary-600 hover:text-white'
+                        }`}
+                      >
+                        {s.full_name}
+                      </button>
+                    );
+                  })}
+                </div>
+                {newForm.student_ids.length === 0 && (
+                  <p className="text-xs text-secondary-500 mt-1">Select at least one student</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-secondary-300 mb-2">Due Date (optional)</label>
@@ -724,7 +825,7 @@ function ProjectManagement({
               </div>
               <button
                 type="submit"
-                disabled={saving}
+                disabled={saving || newForm.student_ids.length === 0}
                 className="w-full py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium disabled:opacity-50"
               >
                 {saving ? 'Creating...' : 'Assign Project'}
@@ -736,8 +837,8 @@ function ProjectManagement({
 
       {/* Edit Modal */}
       {editingProject && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-secondary-800 border border-secondary-700 rounded-2xl p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-secondary-800 border border-secondary-700 rounded-2xl p-6 w-full max-w-md my-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-xl font-bold text-white">Edit Project</h2>
               <button onClick={() => setEditingProject(null)} className="text-secondary-400 hover:text-white">
@@ -761,6 +862,33 @@ function ProjectManagement({
                   <option value="review">Under Review</option>
                   <option value="completed">Completed</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-secondary-300 mb-2">
+                  Assigned Students
+                  {editForm.student_ids.length > 0 && (
+                    <span className="ml-2 text-primary-400">({editForm.student_ids.length} selected)</span>
+                  )}
+                </label>
+                <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-3 bg-secondary-900 border border-secondary-700 rounded-lg">
+                  {students.map((s) => {
+                    const isSelected = editForm.student_ids.includes(s.id);
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => toggleStudent('edit', s.id)}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                          isSelected
+                            ? 'bg-primary-500 text-white'
+                            : 'bg-secondary-700 text-secondary-300 hover:bg-secondary-600 hover:text-white'
+                        }`}
+                      >
+                        {s.full_name}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-secondary-300 mb-2">Mentor Notes</label>
@@ -788,67 +916,82 @@ function ProjectManagement({
         {projects.length === 0 ? (
           <div className="text-center py-12 text-secondary-400">No projects assigned yet. Click "Assign Project" to create one.</div>
         ) : (
-          projects.map((project) => (
-            <div key={project.id} className="p-6 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-white font-semibold text-lg">{project.title}</h3>
-                    <span
-                      className={`px-3 py-0.5 rounded-full text-xs font-medium ${
-                        project.status === 'completed'
-                          ? 'bg-accent-500/20 text-accent-400'
-                          : project.status === 'in_progress'
-                          ? 'bg-primary-500/20 text-primary-400'
-                          : project.status === 'review'
-                          ? 'bg-yellow-500/20 text-yellow-400'
-                          : 'bg-secondary-700 text-secondary-400'
-                      }`}
-                    >
-                      {project.status.replace('_', ' ')}
-                    </span>
-                  </div>
-                  {project.description && <p className="text-secondary-400 mb-3">{project.description}</p>}
-                  <div className="flex flex-wrap items-center gap-3 text-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-primary-500/20 flex items-center justify-center text-primary-400 text-xs font-medium">
-                        {project.profiles?.full_name?.charAt(0)}
-                      </div>
-                      <span className="text-secondary-300">{project.profiles?.full_name}</span>
-                    </div>
-                    {project.due_date && (
-                      <span className="px-2 py-1 bg-secondary-700/50 rounded text-secondary-400">
-                        Due: {format(parseISO(project.due_date), 'MMM d, yyyy')}
+          projects.map((project) => {
+            const assignedStudents = getProjectStudents(project.id);
+            return (
+              <div key={project.id} className="p-6 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-white font-semibold text-lg">{project.title}</h3>
+                      <span
+                        className={`px-3 py-0.5 rounded-full text-xs font-medium ${
+                          project.status === 'completed'
+                            ? 'bg-accent-500/20 text-accent-400'
+                            : project.status === 'in_progress'
+                            ? 'bg-primary-500/20 text-primary-400'
+                            : project.status === 'review'
+                            ? 'bg-yellow-500/20 text-yellow-400'
+                            : 'bg-secondary-700 text-secondary-400'
+                        }`}
+                      >
+                        {project.status.replace('_', ' ')}
                       </span>
-                    )}
-                    {project.mentor_notes && (
-                      <span className="text-secondary-500">| Has notes</span>
-                    )}
+                    </div>
+                    {project.description && <p className="text-secondary-400 mb-3">{project.description}</p>}
+                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                      {assignedStudents.length > 0 ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          {assignedStudents.map((student) => (
+                            <div key={student.id} className="flex items-center gap-2 px-2 py-1 bg-secondary-700/50 rounded-full">
+                              <div className="w-5 h-5 rounded-full bg-primary-500/20 flex items-center justify-center text-primary-400 text-xs font-medium">
+                                {student.full_name?.charAt(0)}
+                              </div>
+                              <span className="text-secondary-300 text-sm">{student.full_name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-secondary-500 italic">No students assigned</span>
+                      )}
+                      {project.due_date && (
+                        <span className="px-2 py-1 bg-secondary-700/50 rounded text-secondary-400">
+                          Due: {format(parseISO(project.due_date), 'MMM d, yyyy')}
+                        </span>
+                      )}
+                      {project.mentor_notes && (
+                        <span className="text-secondary-500">| Has notes</span>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setEditingProject(project);
-                      setEditForm({
-                        mentor_notes: project.mentor_notes || '',
-                        status: project.status,
-                      });
-                    }}
-                    className="p-2 text-secondary-400 hover:text-primary-400 transition-colors"
-                  >
-                    <Edit className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteProject(project.id)}
-                    className="p-2 text-secondary-400 hover:text-red-400 transition-colors"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setEditingProject(project);
+                        const currentStudentIds = projectStudents
+                          .filter(ps => ps.project_id === project.id)
+                          .map(ps => ps.student_id);
+                        setEditForm({
+                          mentor_notes: project.mentor_notes || '',
+                          status: project.status,
+                          student_ids: currentStudentIds,
+                        });
+                      }}
+                      className="p-2 text-secondary-400 hover:text-primary-400 transition-colors"
+                    >
+                      <Edit className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteProject(project.id)}
+                      className="p-2 text-secondary-400 hover:text-red-400 transition-colors"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
