@@ -35,6 +35,7 @@ import {
   ToggleRight,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import Footer from '../components/Footer';
 
 type AdminTabType = 'overview' | 'users' | 'projects' | 'messages' | 'classes' | 'attendance' | 'notes' | 'announcements' | 'polls';
 
@@ -342,6 +343,7 @@ export default function AdminDashboardPage() {
             />
           )}
         </div>
+        <Footer />
       </main>
     </div>
   );

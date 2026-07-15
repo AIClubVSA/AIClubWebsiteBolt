@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Mail, Lock, Loader2, AlertCircle, ArrowLeft, ShieldCheck, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import Footer from '../components/Footer';
 
 const OTP_LENGTH = 8;
 
@@ -311,17 +312,17 @@ export default function LoginPage() {
               </button>
             </form>
           )}
-
-          <div className="mt-6 text-center">
-            <p className="text-gray-500 text-sm">
-              Don't have an account?{' '}
-              <Link to="/signup" className="text-cyan-400 hover:text-cyan-300 font-medium">Sign up</Link>
-            </p>
-          </div>
         </div>
 
-        <p className="mt-6 text-center text-gray-600 text-sm">Part of Vidyashilp Academy</p>
-      </div>
+        <div className="mt-6 text-center">
+          <p className="text-gray-500 text-sm">
+            Don't have an account?{' '}
+            <Link to="/signup" className="text-cyan-400 hover:text-cyan-300 font-medium">Sign up</Link>
+          </p>
+        </div>
+
+      <Footer />
+    </div>
     </div>
   );
 }

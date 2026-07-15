@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Project, Message, Announcement, Class, Note, Attendance, ClassNoteFile, Poll, PollOption, PollVote } from '../types/database';
+import Footer from '../components/Footer';
 import {
   LayoutDashboard,
   FolderGit,
@@ -857,6 +858,7 @@ export default function DashboardPage() {
             <SettingsTab profile={profile!} onUpdate={fetchDashboardData} />
           )}
         </div>
+        <Footer variant="light" />
       </main>
     </div>
   );

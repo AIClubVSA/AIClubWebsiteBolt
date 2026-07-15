@@ -29,6 +29,7 @@ import {
   Trophy,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import Footer from '../components/Footer';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -518,6 +519,7 @@ export default function AboutUsPage() {
             </div>
           </div>
         </footer>
+        <Footer />
       </div>
     </div>
   );

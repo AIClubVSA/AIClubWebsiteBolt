@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Mail, Lock, User, Loader2, AlertCircle, ArrowLeft, ShieldCheck, RefreshCw } from 'lucide-react';
+import Footer from '../components/Footer';
 
 const OTP_LENGTH = 8;
 
@@ -276,7 +277,7 @@ export default function SignupPage() {
           </div>
         </div>
 
-        <p className="mt-6 text-center text-gray-600 text-sm">Part of Vidyashilp Academy</p>
+        <Footer />
       </div>
     </div>
   );

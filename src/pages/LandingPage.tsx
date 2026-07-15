@@ -7,6 +7,7 @@ import { ArrowUpRight, ArrowRight, Plus } from "lucide-react";
 import InfiniteMenu from "../components/InfiniteMenu";
 import FlowingMenu from "../components/FlowingMenu";
 import Hyperspeed from "../components/Hyperspeed";
+import Footer from "../components/Footer";
 
 gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
 
@@ -663,6 +664,7 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+      <Footer />
       </div>
     </div>
   );
