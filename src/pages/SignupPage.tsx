@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Mail, Lock, User, Loader2, AlertCircle, ArrowLeft, ShieldCheck, RefreshCw } from 'lucide-react';
 import Footer from '../components/Footer';
+import { checkLeakedPassword } from '../lib/passwordCheck';
 
 const OTP_LENGTH = 8;
 
@@ -56,7 +57,21 @@ export default function SignupPage() {
     setError(null);
     if (password !== confirmPassword) { setError('Passwords do not match'); return; }
     if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
+
     setLoading(true);
+    try {
+      const { leaked, occurrences } = await checkLeakedPassword(password);
+      if (leaked) {
+        setLoading(false);
+        setError(`This password has been found in ${occurrences.toLocaleString()} known data breaches. Please choose a different password.`);
+        return;
+      }
+    } catch {
+      setLoading(false);
+      setError('Could not verify password safety. Please try again.');
+      return;
+    }
+
     const { error } = await sendSignUpOtp(email);
     setLoading(false);
     if (error) { setError(error); return; }
