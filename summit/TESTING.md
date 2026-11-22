@@ -25,11 +25,11 @@ Tip: to test a full breakout quickly, set one breakout's **capacity** to `2` on 
 
 ### 2. A student submitting twice
 
-With school sign-in (Settings → *Form requires school sign-in* = Yes):
+If the form is restricted to school sign-in:
 
 - [ ] Opening the form again offers **Edit your response**, not a second response. Editing updates the same row.
 
-Without school sign-in, or to test the Sheet's safety net:
+With the form open to anyone (the default):
 
 - [ ] Submit twice with the same email address, using different capitals.
 - [ ] **Check capacity and duplicates**: the older row says "Older response: row N counts". Only the newer row counts towards seats.

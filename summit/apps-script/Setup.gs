@@ -91,13 +91,13 @@ function setupSummitLocked_() {
   setSetting_(SUMMIT.SETTINGS_KEYS.FORM_EDIT_LINK, form.getEditUrl());
   setSetting_(SUMMIT.SETTINGS_KEYS.SIGN_IN, built.verified
     ? 'Yes: students sign in with their school account, email is collected automatically, one response each (they can edit it).'
-    : 'No: this account can\'t restrict the form to the school, so students type their email. Duplicates are caught in the Sheet.');
+    : 'No: anyone with the link can respond and types their own email. If someone sends it twice, the latest response counts.');
   saveBreakoutNames_(breakouts);
 
   ui.alert('Setup finished',
     'Created the form "' + SUMMIT.FORM_TITLE + '" and the Settings, Breakouts, Templates, Topics and Responses tabs.\n\n' +
     'Student form link (also on the Settings tab):\n' + form.getPublishedUrl() + '\n\n' +
-    (built.verified ? '' : 'Note: the form could not be limited to school sign-in on this account. See the Settings tab.\n\n') +
+    (built.verified || !SUMMIT.RESTRICT_TO_SCHOOL ? '' : 'Note: the form could not be limited to school sign-in on this account. See the Settings tab.\n\n') +
     'Next: deploy the web app (README step 4).', ui.ButtonSet.OK);
 }
 
@@ -298,18 +298,23 @@ function formDescription_(settings) {
     SUMMIT.CONSENT_TEXT;
 }
 
-/** Builds the form. verified is true when students must sign in with a school account. */
+/**
+ * Builds the form. With SUMMIT.RESTRICT_TO_SCHOOL off (the default) anyone with the link can
+ * respond and types their email. verified is true only when students must sign in with a school account.
+ */
 function createForm_(settings, breakouts) {
   const Q = SUMMIT.QUESTIONS;
   const form = FormApp.create(SUMMIT.FORM_TITLE);
   form.setDescription(formDescription_(settings));
 
   let verified = false;
-  try {
-    form.setRequireLogin(true); // school (Workspace) accounts only; throws on personal accounts
-    verified = true;
-  } catch (err) {
-    verified = false;
+  if (SUMMIT.RESTRICT_TO_SCHOOL) {
+    try {
+      form.setRequireLogin(true); // school (Workspace) accounts only; throws on personal accounts
+      verified = true;
+    } catch (err) {
+      verified = false;
+    }
   }
   if (verified) {
     try {
@@ -323,13 +328,15 @@ function createForm_(settings, breakouts) {
   form.setPublishingSummary(false); // students can't see other people's answers
   form.setShowLinkToRespondAgain(false);
   form.setConfirmationMessage('Thanks! Organisers will place you in a breakout and email you once you have a place.' +
-    (verified ? ' You can edit your answers from the link in your confirmation receipt.' : ''));
+    (verified
+      ? ' You can edit your answers from the link in your confirmation receipt.'
+      : ' To change your choices, send the form again with the same email address; your latest answers count.'));
 
   form.addTextItem().setTitle(Q.NAME).setRequired(true);
   form.addListItem().setTitle(Q.GRADE).setChoiceValues(settings.grades).setRequired(true);
   if (!verified) {
     form.addTextItem().setTitle(Q.EMAIL)
-      .setHelpText('Use your school email address. We send your breakout details here.')
+      .setHelpText('Use an email address you check. We send your breakout details here.')
       .setRequired(true)
       .setValidation(FormApp.createTextValidation().setHelpText('Enter a valid email address.').requireTextIsEmail().build());
   }

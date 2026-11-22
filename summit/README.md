@@ -50,11 +50,15 @@ Nothing in this repo contains a real student, a deployment URL or a secret. Test
 2. Click **AI Summit → Run setup (first time only)**.
 3. Google asks you to allow the script to manage your Sheets and Forms and send email as you. Allow it. (If you see "Google hasn't verified this app", click **Advanced → Go to … (unsafe)**. It's your own script.)
 4. Setup creates:
-   - the **Google Form**, with name, grade, school email, a 1st/2nd/3rd-choice grid and a consent line
+   - the **Google Form**, with name, grade, email, a 1st/2nd/3rd-choice grid and a consent line
    - these tabs: **Settings**, **Breakouts**, **Templates**, **Topics**, **Responses** (linked to the form), and **Capacity** (written later by the capacity check)
-5. On the **Settings** tab, check **Form requires school sign-in**:
-   - **Yes**: students sign in with their school account. Their email is collected automatically, and each student gets one response, which they can edit.
-   - **No**: the account isn't a Workspace account, so students type their email. Duplicate submissions are caught in the Sheet instead.
+5. The form is **open to anyone with the link**, so students without a school Google account can sign up. They type their email, and if someone sends the form twice, their latest response counts. To allow only Vidyashilp accounts instead, set `RESTRICT_TO_SCHOOL: true` in `Config.gs` before running setup. The Settings tab's **Form requires school sign-in** row records which mode you got.
+
+   **Changing an existing form** (no new setup needed): open the form → **Settings → Responses**.
+   - **Open to anyone:** turn off "Restrict to users in Vidyashilp Academy", set **Collect email addresses** to **Responder input**, and turn off "Limit to 1 response".
+   - **School only:** reverse those three settings.
+
+   The script works either way.
 6. Open the **Student form link** from Settings and look at the form.
 7. Click **AI Summit → Run self-tests (fake data, no emails)**. All tests should pass.
 
@@ -162,7 +166,7 @@ Any other `{word}` in a template stops sending, so a typo never reaches students
 
 ## Privacy (the school's rules)
 
-- The form collects only name, grade, school email, the three choices and a consent tick. Its consent line says the data is used only to run the summit.
+- The form collects only name, grade, email, the three choices and a consent tick. It is open to anyone with the link, so share the link only with students who should attend. Its consent line says the data is used only to run the summit.
 - The form's response summary is turned off, so students can't see each other's answers.
 - The Sheet is shared with organisers only.
 - The endpoint returns only breakout id, name, description, status and, for each time slot: time, capacity, seats taken, seats left and full. It never includes student names, emails, grades or rooms. A self-test checks this.

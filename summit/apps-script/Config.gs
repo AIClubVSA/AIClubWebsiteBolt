@@ -30,17 +30,21 @@ const SUMMIT = {
 
   FORM_TITLE: 'AI Summit 2026: choose your breakouts',
 
+  // false: anyone with the link can respond and types their email (students without a school account can join).
+  // true:  only Vidyashilp Google accounts can respond; email is collected at sign-in, one response each.
+  RESTRICT_TO_SCHOOL: false,
+
   // Question titles on the Google Form. The Responses tab uses these as column headers.
   QUESTIONS: {
     NAME: 'Full name',
     GRADE: 'Grade',
-    EMAIL: 'School email address', // only asked when the form can't verify school sign-in
+    EMAIL: 'Email address', // typed by the student when the form is open to everyone
     CHOICES: 'Rank your top 3 breakouts',
     CONSENT: 'Consent',
   },
 
   CONSENT_TEXT:
-    'I understand that my name, grade, school email and choices are used only to run the AI Summit 2026. ' +
+    'I understand that my name, grade, email and choices are used only to run the AI Summit 2026. ' +
     'They are not shared with sponsors or partners, or shown publicly.',
 
   CHOICE_ROWS: ['1st choice', '2nd choice', '3rd choice'],

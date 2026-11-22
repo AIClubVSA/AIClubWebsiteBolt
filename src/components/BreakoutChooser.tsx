@@ -38,7 +38,7 @@ export default function BreakoutChooser() {
             Choose your breakout.
           </h2>
           <p className="summit-lede">
-            Rank your top three on the form. Organisers place every student and email your school address once you have a place.
+            Rank your top three on the form. Organisers place every student and email you once you have a place.
             {data ? (
               data.breakoutsPerStudent === 2
                 ? ' You\'ll be placed in two breakouts, one in each time slot.'
@@ -50,7 +50,7 @@ export default function BreakoutChooser() {
         <ol className="summit-steps">
           <li><span className="summit-step-num">01</span> Rank your top 3 on the form</li>
           <li><span className="summit-step-num">02</span> Organisers place you</li>
-          <li><span className="summit-step-num">03</span> Check your school email</li>
+          <li><span className="summit-step-num">03</span> Check your email</li>
         </ol>
 
         <div className="summit-cta">
@@ -64,7 +64,7 @@ export default function BreakoutChooser() {
               The form opens soon
             </span>
           )}
-          <p className="summit-note">Use your school email. To change your choices before you're placed, open the form again.</p>
+          <p className="summit-note">Use an email address you check: that's where your place is confirmed. To change your choices, send the form again with the same email; your latest answers count.</p>
         </div>
 
         <div className="summit-status" role="status" aria-live="polite">
@@ -89,7 +89,7 @@ export default function BreakoutChooser() {
         )}
 
         <p className="summit-privacy">
-          We use your name, grade, school email and choices only to run the summit. They are never shared with sponsors or
+          We use your name, grade, email and choices only to run the summit. They are never shared with sponsors or
           partners, and this page only ever shows seat counts.
         </p>
       </div>
