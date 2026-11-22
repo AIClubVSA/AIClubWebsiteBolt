@@ -12,7 +12,7 @@ The self-tests cover: full breakouts, duplicate submissions, assignments changin
 
 ## Manual
 
-Tip: to test a full breakout quickly, set one breakout's **capacity** to `2` on the Breakouts tab. Put it back to 35 afterwards.
+Tip: to test a full breakout quickly, set one breakout's **capacity** to `2` on the Breakouts tab. Put it back to 31 afterwards.
 
 ### 1. A full breakout
 

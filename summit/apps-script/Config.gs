@@ -82,7 +82,7 @@ const SUMMIT = {
   DEFAULTS: {
     PER_STUDENT: 1,
     SLOTS: ['12:45–2:45 pm'], // add more, separated by ; in Settings, if breakouts run more than once
-    DEFAULT_CAPACITY: 35,
+    DEFAULT_CAPACITY: 31,
     DATE: 'Wednesday 16 December 2026',
     GRADES: ['Grade 9', 'Grade 10'],
     SENDER_NAME: 'AI Centre, Vidyashilp Academy',

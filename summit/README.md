@@ -129,7 +129,7 @@ Work through [TESTING.md](TESTING.md) with made-up students. Then, before giving
 | Add a breakout | Add a row on **Breakouts**, then **Refresh form choices and dropdowns**. |
 | Rename a breakout | Change its **name** but keep its **id**, then **Refresh…**. Existing assignments are renamed for you. Students who were already emailed are *not* emailed again. |
 | Hide a breakout | Untick **listed**, then **Refresh…**. It disappears from the website and the form. |
-| Change seats | Edit **capacity** (seats per run). Blank uses Settings → *Default capacity per run* (35). |
+| Change seats | Edit **capacity** (seats per run). Blank uses Settings → *Default capacity per run* (31). |
 | Mark as tentative | Set **status** to `tentative`. The website shows a "Tentative" tag. |
 | Run a breakout in one slot only | Set **runs** to that slot's time, exactly as written in Settings → *Time slots*, or to `1` or `2`. |
 | Give each student 2 breakouts | Set Settings → *Breakouts per student* to `2`, then **Refresh…**. |
