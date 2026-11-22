@@ -382,6 +382,7 @@ export default function LandingPage() {
             {[["Mission", "mission"], ["Programme", "gallery"], ["Principles", "pillars"]].map(([label, id]) => (
               <button key={id} onClick={() => scrollTo(id)} className="lp-link" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "var(--text-muted)" }}>{label}</button>
             ))}
+            <Link to="/summit" className="lp-link" style={{ fontSize: 14, color: "var(--text-muted)" }}>AI Summit</Link>
             <Link to="/about" className="lp-link" style={{ fontSize: 14, color: "var(--text-muted)" }}>About Us</Link>
           </div>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
@@ -649,6 +650,7 @@ export default function LandingPage() {
                 {[["Mission", "mission"], ["Programme", "gallery"], ["Principles", "pillars"]].map(([l, id]) => (
                   <button key={id} onClick={() => scrollTo(id)} className="lp-link" style={{ display: "block", background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 14, padding: "6px 0", textAlign: "left" }}>{l}</button>
                 ))}
+                <Link to="/summit" className="lp-link" style={{ display: "block", color: "var(--text-muted)", fontSize: 14, padding: "6px 0" }}>AI Summit 2026</Link>
               </div>
               <div>
                 <div className="lp-eyebrow" style={{ marginBottom: 16 }}>Portal</div>

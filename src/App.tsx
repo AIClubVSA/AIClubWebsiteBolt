@@ -6,6 +6,7 @@ import SignupPage from './pages/SignupPage';
 import DashboardPage from './pages/DashboardPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import AboutUsPage from './pages/AboutUsPage';
+import SummitPage from './pages/SummitPage';
 import { Loader2 } from 'lucide-react';
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
@@ -63,6 +64,7 @@ function AppRoutes() {
         }
       />
       <Route path="/about" element={<AboutUsPage />} />
+      <Route path="/summit" element={<SummitPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
