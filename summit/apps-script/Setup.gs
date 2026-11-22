@@ -292,7 +292,9 @@ function prepareResponsesTab_(sh, settings, breakouts) {
 function formDescription_(settings) {
   return 'For students attending the AI Summit 2026 at Vidyashilp Academy on ' + settings.date + '.\n\n' +
     'Rank the three breakouts you\'d most like to attend. Organisers place students and email you once you have a place. ' +
-    'Each breakout runs twice: ' + settings.slots.join(' and ') + '.\n\n' +
+    (settings.slots.length === 1
+      ? 'Breakouts run from ' + settings.slots[0] + '.'
+      : 'Each breakout runs ' + settings.slots.length + ' times: ' + settings.slots.join(' and ') + '.') + '\n\n' +
     SUMMIT.CONSENT_TEXT;
 }
 

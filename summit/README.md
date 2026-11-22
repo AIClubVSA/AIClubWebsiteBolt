@@ -2,7 +2,7 @@
 
 Students pick breakouts on a Google Form. Organisers assign them in a Google Sheet. The website's `/summit` page shows how full each breakout is, and the Sheet sends each student a confirmation email and, later, their pre-summit topic.
 
-The AI Summit is on **Wednesday 16 December 2026** at Vidyashilp Academy, Bengaluru. Each breakout runs twice: **10:00–11:00 am** and **11:15 am–12:15 pm**.
+The AI Summit is on **Wednesday 16 December 2026** at Vidyashilp Academy, Bengaluru. Breakouts run in one time slot, **12:45–2:45 pm** (Settings → *Time slots*; add more there if a breakout ever runs twice).
 
 ```
 Student ──▶ Google Form ──▶ Sheet "Responses" tab (organisers only)
@@ -106,12 +106,13 @@ Work through [TESTING.md](TESTING.md) with made-up students. Then, before giving
    - rewrites the **Capacity** tab
    - lists anything that would stop an email
 2. **Assign.** On the **Responses** tab, use each student's ranking to pick a breakout from the dropdown in an **Assigned breakout** column:
-   - With 1 breakout per student, fill **one** of the two slot columns: slot 1 is 10:00, slot 2 is 11:15.
+   - With one time slot (12:45–2:45 pm), fill the single **Assigned breakout (slot 1 …)** column.
+   - If you add a second time slot later: with 1 breakout per student, fill **one** of the slot columns.
    - With 2 breakouts per student, fill **both** slot columns, with a different breakout in each.
    - A cell turns red if the breakout is over capacity, isn't a breakout, doesn't run in that slot, or is on an older duplicate response. A pop-up names any breakout that goes over capacity.
    - The website catches up within about 6 minutes: up to 1 minute of caching in the script, plus 5 in the browser.
 3. **Send confirmations.** Click **AI Summit → Send confirmation emails to newly assigned students**. It tells you how many will go and how many emails the account has left today. Click **Yes**.
-   - Afterwards, check the **Confirmation email** column. Anyone held back has a "Not sent: …" reason, such as over capacity, no breakout in slot 2, or no valid email.
+   - Afterwards, check the **Confirmation email** column. Anyone held back has a "Not sent: …" reason, such as over capacity, an unknown breakout, or no valid email.
    - Each student gets **one** confirmation. Running it again only emails students who are new or whose assignment changed.
 4. **Changes after an email went out.** Just change the cell and run step 3 again. The student gets one **"Updated: your breakout"** email. If you clear a student's assignment, no email goes out. Their status says to tell the student yourself.
 5. **Topic emails** (once you have the topics):
@@ -144,7 +145,7 @@ A breakout with no description shows **"Topic to be announced"** on the website.
 | `{name}`, `{first_name}`, `{grade}` | The student's details |
 | `{breakout}` | Breakout name(s), e.g. "AI in Finance and AI Ethics" |
 | `{time}`, `{room}` | Time(s) and room(s). Room is blank if not filled in. |
-| `{schedule}` | One line per breakout: "• AI in Finance: 10:00–11:00 am, Room 204" (the room only if filled in) |
+| `{schedule}` | One line per breakout: "• AI in Finance: 12:45–2:45 pm, Room 204" (the room only if filled in) |
 | `{date}` | Settings → *Summit date* |
 | `{level}` | Beginner, Intermediate or Advanced (topic email) |
 | `{topic}`, `{topics}` | The topic text, or one line per breakout with its topic (topic email) |

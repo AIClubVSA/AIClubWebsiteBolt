@@ -74,7 +74,7 @@ export default function BreakoutChooser() {
             <>
               {result?.state === 'ready' && result.stale ? 'Availability will update soon. Showing seats as of ' : 'Seats updated '}
               {formatTime(data.updatedAt)}
-              {times.length > 1 ? `. Each breakout runs at ${joinWords(times)}.` : '.'}
+              {times.length > 1 ? `. Each breakout runs at ${joinWords(times)}.` : times.length === 1 ? `. Breakouts run ${times[0]}.` : '.'}
               {' '}Seats fill as students are placed, not when the form is sent.
             </>
           )}

@@ -50,7 +50,7 @@ const SUMMIT = {
   COLUMNS: {
     TIMESTAMP: 'Timestamp',
     DUPLICATE: 'Duplicate?',
-    // One per time slot, e.g. "Assigned breakout (slot 1: 10:00–11:00 am)".
+    // One per time slot, e.g. "Assigned breakout (slot 1: 12:45–2:45 pm)".
     // The script only relies on the "Assigned breakout (slot N" part.
     SLOT_PREFIX: 'Assigned breakout (slot ',
     LEVEL: 'Level',
@@ -81,7 +81,7 @@ const SUMMIT = {
 
   DEFAULTS: {
     PER_STUDENT: 1,
-    SLOTS: ['10:00–11:00 am', '11:15 am–12:15 pm'],
+    SLOTS: ['12:45–2:45 pm'], // add more, separated by ; in Settings, if breakouts run more than once
     DEFAULT_CAPACITY: 35,
     DATE: 'Wednesday 16 December 2026',
     GRADES: ['Grade 9', 'Grade 10'],
