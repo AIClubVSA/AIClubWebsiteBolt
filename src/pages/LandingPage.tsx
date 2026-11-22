@@ -351,7 +351,7 @@ export default function LandingPage() {
       <CustomCursor />
       <div className="lp-content" style={{ position: "relative", zIndex: 1 }}>
       <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 2, zIndex: 200, background: "transparent" }}>
-        <div ref={progressRef} style={{ height: "100%", width: "100%", background: "linear-gradient(90deg, var(--accent), var(--accent3))", boxShadow: "0 0 12px rgba(99,102,241,0.6)" }} />
+        <div ref={progressRef} style={{ height: "100%", width: "100%", background: "linear-gradient(90deg in oklch, var(--accent), var(--accent3))", boxShadow: "0 0 12px oklch(0.585 0.204 277 / 0.6)" }} />
       </div>
 
       <div className="lp-hide-mobile" style={{ position: "fixed", right: 28, top: "50%", transform: "translateY(-50%)", zIndex: 120, display: "flex", flexDirection: "column", gap: 18, alignItems: "flex-end" }}>
@@ -392,7 +392,7 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      <section id="top" className="hero" style={{ position: "relative", height: "100vh", minHeight: 680, overflow: "hidden", display: "flex", alignItems: "center" }}>
+      <section id="top" className="hero" style={{ position: "relative", height: "100svh", minHeight: 680, overflow: "hidden", display: "flex", alignItems: "center" }}>
         <div className="hero-canvas-wrap" style={{ position: "absolute", inset: 0, opacity: 0.9 }}>
           <Hyperspeed effectOptions={HYPER_OPTIONS} />
         </div>
@@ -452,7 +452,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="gallery" className="gallery" style={{ height: "100vh", overflow: "hidden", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}>
+      <section id="gallery" className="gallery" style={{ height: "100svh", overflow: "hidden", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}>
         <div ref={trackRef} style={{ display: "flex", height: "100%", alignItems: "center", width: "max-content", padding: "0 clamp(20px,4vw,56px)", gap: 28, perspective: 1400, transformStyle: "preserve-3d" }}>
           <div style={{ width: "min(82vw, 460px)", flexShrink: 0 }}>
             <div className="lp-eyebrow" style={{ marginBottom: 24 }}>[ The programme ]</div>
@@ -538,7 +538,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section style={{ padding: "clamp(40px,8vh,90px) 0", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", overflow: "hidden" }}>
+      <section className="edge-fade" style={{ padding: "clamp(40px,8vh,90px) 0", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", overflow: "hidden" }}>
         <div className="lp-marquee vel-skew">
           {[...Array(2)].map((_, dup) => (
             <div key={dup} style={{ display: "flex", alignItems: "center" }}>
@@ -616,8 +616,8 @@ export default function LandingPage() {
                 onMouseMove={spotlight}
                 style={{ padding: "32px", borderRadius: 16, display: "flex", flexDirection: "column", gap: 20 }}
               >
-                <div style={{ height: 80, display: "flex", alignItems: "center" }}>
-                  <img src={uni.logo} alt={uni.name} style={{ maxHeight: 72, maxWidth: 180, objectFit: "contain", filter: "brightness(1.1) contrast(1.05)" }} />
+                <div className="logo-tile">
+                  <img src={uni.logo} alt={uni.name} />
                 </div>
                 <div>
                   <h3 className="lp-display" style={{ fontSize: 18, letterSpacing: "-0.02em", marginBottom: 4 }}>{uni.name}</h3>

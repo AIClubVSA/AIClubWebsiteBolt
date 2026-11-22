@@ -14,7 +14,7 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-secondary-900 flex items-center justify-center">
+      <div className="min-h-dvh bg-secondary-900 flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-primary-400 animate-spin" />
       </div>
     );
@@ -36,7 +36,7 @@ function AppRoutes() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-secondary-900 flex items-center justify-center">
+      <div className="min-h-dvh bg-secondary-900 flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-primary-400 animate-spin" />
       </div>
     );

@@ -34,7 +34,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #0ea5e9, #06b6d4);
+  background: linear-gradient(180deg in oklch, #0ea5e9, #06b6d4);
   border-radius: 4px;
 }
 
@@ -83,14 +83,14 @@ body {
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 50%, #10b981 100%);
+  background: linear-gradient(135deg in oklch, #0ea5e9 0%, #06b6d4 50%, #10b981 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .gradient-bg {
-  background: linear-gradient(-45deg, #0a0a0f, #0f172a, #0a0a0f, #0c1929);
+  background: linear-gradient(-45deg in oklch, #0a0a0f, #0f172a, #0a0a0f, #0c1929);
   background-size: 400% 400%;
   animation: gradientShift 15s ease infinite;
 }
@@ -128,7 +128,7 @@ body {
   content: '';
   position: absolute;
   inset: -2px;
-  background: conic-gradient(from 0deg, #0ea5e9, #06b6d4, #10b981, #0ea5e9);
+  background: conic-gradient(from 0deg in oklch, #0ea5e9, #06b6d4, #10b981, #0ea5e9);
   border-radius: inherit;
   animation: rotateBorder 4s linear infinite;
   z-index: -1;
@@ -255,7 +255,7 @@ body {
 
 .scroll-progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #0ea5e9, #06b6d4, #10b981);
+  background: linear-gradient(90deg in oklch, #0ea5e9, #06b6d4, #10b981);
   transition: width 0.1s;
 }
 
@@ -263,17 +263,26 @@ body {
    LANDING PAGE — professional / editorial system
    ───────────────────────────────────────────── */
 
+/* Tokens in OKLCH: same hue for every neutral, even lightness steps.
+   Brand colours are exact conversions of the old hex values. */
 :root {
-  --bg: #08080a;
-  --surface: #0e0e11;
-  --surface2: #16161a;
-  --accent: #6366f1;
-  --accent2: #8b5cf6;
-  --accent3: #06b6d4;
-  --glow: rgba(99, 102, 241, 0.4);
-  --text: #ededef;
-  --text-muted: #8a8a93;
-  --line: rgba(255, 255, 255, 0.08);
+  /* Surfaces: the higher a layer sits, the lighter it is (dark-mode depth without shadows) */
+  --bg:        oklch(0.135 0.005 286);  /* page */
+  --surface:   oklch(0.175 0.006 286);  /* cards (was #0e0e11) */
+  --surface2:  oklch(0.215 0.008 286);  /* popovers, raised panels */
+  --surface3:  oklch(0.255 0.009 286);  /* modals, tooltips */
+  --highlight: inset 0 1px 0 rgb(255 255 255 / 0.06);
+
+  --accent:  oklch(0.585 0.204 277);    /* #6366f1 */
+  --accent2: oklch(0.606 0.219 293);    /* #8b5cf6 */
+  --accent3: oklch(0.715 0.126 215);    /* #06b6d4 */
+  --glow: oklch(0.585 0.204 277 / 0.4);
+  --text:       oklch(0.947 0.003 286);
+  --text-muted: oklch(0.636 0.013 286);
+
+  /* Alpha borders pick up whatever sits behind them */
+  --line:        rgb(255 255 255 / 0.08);
+  --line-strong: rgb(255 255 255 / 0.18);
 }
 
 .lp { font-family: 'Inter', sans-serif; }
@@ -360,12 +369,14 @@ body {
 .lp-panel {
   border: 1px solid var(--line);
   border-radius: 16px;
-  background: linear-gradient(160deg, rgba(255,255,255,0.025), rgba(255,255,255,0));
+  /* Raised surface: lighter than the page, with a faint top edge highlight */
+  background: var(--surface);
+  box-shadow: var(--highlight);
   position: relative;
   overflow: hidden;
-  transition: border-color 0.4s ease;
+  transition: border-color 0.4s ease, background-color 0.4s ease;
 }
-.lp-panel:hover { border-color: rgba(255,255,255,0.18); }
+.lp-panel:hover { border-color: var(--line-strong); background: var(--surface2); }
 .lp-panel::before {
   content: '';
   position: absolute;
@@ -455,7 +466,7 @@ body {
    AI SUMMIT PAGE (/summit) — uses the landing-page tokens above
    ───────────────────────────────────────────── */
 
-.summit-page { background: var(--bg); color: var(--text); min-height: 100vh; }
+.summit-page { background: var(--bg); color: var(--text); min-height: 100vh; min-height: 100dvh; }
 .summit-wrap { max-width: 1320px; margin: 0 auto; }
 
 .summit-skip {
@@ -553,4 +564,74 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .summit-page *, .summit-page *::before, .summit-page *::after { transition: none !important; animation: none !important; }
+}
+
+/* ─────────────────────────────────────────────
+   POLISH — niche design rules applied site-wide
+   ───────────────────────────────────────────── */
+
+/* #4 Tailwind v3 gradients interpolate in sRGB (cyan→emerald goes muddy in the middle).
+   Re-declare the direction utilities to interpolate in OKLCH where supported. */
+@supports (background: linear-gradient(in oklch, red, blue)) {
+  .bg-gradient-to-r  { background-image: linear-gradient(to right in oklch, var(--tw-gradient-stops)); }
+  .bg-gradient-to-l  { background-image: linear-gradient(to left in oklch, var(--tw-gradient-stops)); }
+  .bg-gradient-to-b  { background-image: linear-gradient(to bottom in oklch, var(--tw-gradient-stops)); }
+  .bg-gradient-to-t  { background-image: linear-gradient(to top in oklch, var(--tw-gradient-stops)); }
+  .bg-gradient-to-br { background-image: linear-gradient(to bottom right in oklch, var(--tw-gradient-stops)); }
+  .bg-gradient-to-bl { background-image: linear-gradient(to bottom left in oklch, var(--tw-gradient-stops)); }
+  .bg-gradient-to-tr { background-image: linear-gradient(to top right in oklch, var(--tw-gradient-stops)); }
+  .bg-gradient-to-tl { background-image: linear-gradient(to top left in oklch, var(--tw-gradient-stops)); }
+}
+
+/* #5 Icon strokes match the text beside them (Lucide draws at 2 by default = semibold).
+   Body text on the public pages is 400–500, so thin the pen to match. */
+.lp .lucide { stroke-width: 1.5; }
+.lp .lp-btn .lucide,
+.lp .lp-link .lucide,
+.lp .lp-eyebrow + .lucide { stroke-width: 1.75; }
+.lp .lp-btn .lucide { width: 1.1em; height: 1.1em; }
+
+/* #6 Horizontal scrollers fade into the background instead of slicing items off */
+.scroll-fade {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 16px calc(100% - 16px), transparent);
+          mask-image: linear-gradient(90deg, transparent, #000 16px calc(100% - 16px), transparent);
+}
+.edge-fade {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12% 88%, transparent);
+          mask-image: linear-gradient(90deg, transparent, #000 12% 88%, transparent);
+}
+
+/* #7 Icon swaps: the outgoing icon blurs and shrinks as the new one arrives */
+.icon-swap { display: inline-grid; place-items: center; }
+.icon-swap > * {
+  grid-area: 1 / 1;
+  transition: opacity 200ms ease, filter 200ms ease, scale 200ms ease;
+}
+.icon-swap > [data-state="hidden"] {
+  opacity: 0;
+  filter: blur(4px);
+  scale: 0.8;
+}
+@media (prefers-reduced-motion: reduce) {
+  .icon-swap > * { transition: opacity 150ms ease; filter: none; scale: 1; }
+}
+
+/* #10 Logos shot on white: give them a light tile and multiply the white away,
+   instead of a hard white box on a dark card. #1: radius 10 − padding 10 = square image. */
+.logo-tile {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  height: 80px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: oklch(0.97 0.003 286);
+  isolation: isolate;
+}
+.logo-tile img {
+  max-height: 60px;
+  max-width: 170px;
+  object-fit: contain;
+  border-radius: 0;
+  mix-blend-mode: multiply;
 }
