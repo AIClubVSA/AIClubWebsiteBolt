@@ -350,8 +350,11 @@ function configureChoiceGrid_(item, breakouts) {
   const columns = breakouts.filter(function (b) { return b.listed; }).map(function (b) { return b.name; });
   if (!columns.length) throw new Error('No breakouts are listed. Tick "listed" for at least one breakout.');
   const rows = SUMMIT.CHOICE_ROWS.slice(0, Math.min(SUMMIT.CHOICE_ROWS.length, columns.length));
+  // Only reset the rows when they actually change: Google treats re-set rows as new
+  // questions and adds another three "Rank your top 3 breakouts [...]" columns to the Sheet.
+  const currentRows = item.getRows ? item.getRows() : [];
+  if (currentRows.join('\n') !== rows.join('\n')) item.setRows(rows);
   item.setHelpText('Choose one breakout per row, each one only once. Descriptions and seats left are on the AI Summit page of the AI Centre website.')
-    .setRows(rows)
     .setColumns(columns)
     .setRequired(true)
     .setValidation(FormApp.createGridValidation()
