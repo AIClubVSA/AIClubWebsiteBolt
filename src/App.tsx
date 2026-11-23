@@ -6,6 +6,7 @@ import SignupPage from './pages/SignupPage';
 import DashboardPage from './pages/DashboardPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import AboutUsPage from './pages/AboutUsPage';
+import SummitPage from './pages/SummitPage';
 import { Loader2 } from 'lucide-react';
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
@@ -13,7 +14,7 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-secondary-900 flex items-center justify-center">
+      <div className="min-h-dvh bg-secondary-900 flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-primary-400 animate-spin" />
       </div>
     );
@@ -35,7 +36,7 @@ function AppRoutes() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-secondary-900 flex items-center justify-center">
+      <div className="min-h-dvh bg-secondary-900 flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-primary-400 animate-spin" />
       </div>
     );
@@ -63,6 +64,7 @@ function AppRoutes() {
         }
       />
       <Route path="/about" element={<AboutUsPage />} />
+      <Route path="/summit" element={<SummitPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

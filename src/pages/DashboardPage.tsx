@@ -167,7 +167,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-sky-50 to-primary-100 flex items-center justify-center">
+      <div className="min-h-dvh bg-gradient-to-br from-primary-50 via-sky-50 to-primary-100 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-16 h-16 rounded-2xl bg-white shadow-lg shadow-primary-200 flex items-center justify-center">
             <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
@@ -179,7 +179,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-sky-50 to-primary-100">
+    <div className="min-h-dvh bg-gradient-to-br from-primary-50 via-sky-50 to-primary-100">
       {/* Sidebar */}
       <aside className="fixed left-0 top-0 bottom-0 w-64 hidden lg:flex flex-col bg-white/80 backdrop-blur-xl border-r border-primary-100 shadow-xl shadow-primary-100/50">
         {/* Logo */}
@@ -258,7 +258,7 @@ export default function DashboardPage() {
               <LogOut className="w-5 h-5" />
             </button>
           </div>
-          <div className="flex gap-1 px-3 pb-2 overflow-x-auto">
+          <div className="flex gap-1 px-3 pb-2 overflow-x-auto scroll-fade">
             {sidebarItems.map((item) => (
               <button
                 key={item.id}
@@ -549,7 +549,7 @@ export default function DashboardPage() {
                 <EmptyState icon={StickyNote} message="No classes available yet. Notes will appear here once classes are scheduled." />
               ) : (
                 <>
-                  <div className="flex gap-3 overflow-x-auto pb-2">
+                  <div className="flex gap-3 overflow-x-auto pb-2 scroll-fade">
                     {classes.map((c) => {
                       const isSelected = selectedClassId === c.id;
                       const att = attendance.find((a) => a.class_id === c.id);

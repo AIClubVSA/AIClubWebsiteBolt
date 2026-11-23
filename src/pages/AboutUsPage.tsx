@@ -158,7 +158,7 @@ export default function AboutUsPage() {
       <CustomCursor />
       <div className="lp-content" style={{ position: "relative", zIndex: 1 }}>
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 2, zIndex: 200, background: "transparent" }}>
-          <div ref={progressRef} style={{ height: "100%", width: "100%", background: "linear-gradient(90deg, var(--accent), var(--accent3))", boxShadow: "0 0 12px rgba(99,102,241,0.6)" }} />
+          <div ref={progressRef} style={{ height: "100%", width: "100%", background: "linear-gradient(90deg in oklch, var(--accent), var(--accent3))", boxShadow: "0 0 12px oklch(0.585 0.204 277 / 0.6)" }} />
         </div>
 
         <nav style={{
@@ -241,7 +241,7 @@ export default function AboutUsPage() {
                       width: isFirst ? 72 : 56,
                       height: isFirst ? 72 : 56,
                       borderRadius: "50%",
-                      background: `linear-gradient(to bottom right, var(--tw-gradient-stops))`,
+                      background: `linear-gradient(to bottom right in oklch, var(--tw-gradient-stops))`,
                       display: "grid",
                       placeItems: "center",
                       flexShrink: 0,
@@ -325,7 +325,7 @@ export default function AboutUsPage() {
               { value: '3', label: 'Competitions Entered' },
             ].map((stat) => (
               <div key={stat.label} data-fade className="lp-panel" style={{ padding: "32px", textAlign: "center", borderRadius: 16 }}>
-                <div className="lp-display" style={{ fontSize: "clamp(2rem,4vw,3rem)", background: "linear-gradient(135deg, var(--accent), var(--accent3))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: 8 }}>{stat.value}</div>
+                <div className="lp-display" style={{ fontSize: "clamp(2rem,4vw,3rem)", background: "linear-gradient(135deg in oklch, var(--accent), var(--accent3))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: 8 }}>{stat.value}</div>
                 <span className="lp-eyebrow">{stat.label}</span>
               </div>
             ))}
@@ -340,13 +340,13 @@ export default function AboutUsPage() {
               How the club came to life.
             </h2>
             <div style={{ position: "relative" }}>
-              <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 1, background: "linear-gradient(to bottom, var(--accent), var(--accent3), transparent)" }} />
+              <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 1, background: "linear-gradient(to bottom in oklch, var(--accent), var(--accent3), transparent)" }} />
               <div style={{ display: "flex", flexDirection: "column", gap: 48 }}>
                 {milestones.map((m, i) => {
                   const Icon = m.icon;
                   return (
                     <div key={m.year} data-fade style={{ display: "grid", gridTemplateColumns: "48px 1fr", gap: 28, alignItems: "flex-start", paddingLeft: 24 }}>
-                      <div style={{ width: 40, height: 40, borderRadius: "50%", background: "linear-gradient(135deg, var(--accent), var(--accent3))", display: "grid", placeItems: "center", marginLeft: -44, flexShrink: 0, border: "3px solid var(--bg)" }}>
+                      <div style={{ width: 40, height: 40, borderRadius: "50%", background: "linear-gradient(135deg in oklch, var(--accent), var(--accent3))", display: "grid", placeItems: "center", marginLeft: -44, flexShrink: 0, border: "3px solid var(--bg)" }}>
                         <Icon size={16} color="#fff" />
                       </div>
                       <div>
@@ -470,8 +470,8 @@ export default function AboutUsPage() {
                   onMouseMove={spotlight}
                   style={{ padding: "32px", borderRadius: 16, display: "flex", flexDirection: "column", gap: 20 }}
                 >
-                  <div style={{ height: 80, display: "flex", alignItems: "center" }}>
-                    <img src={uni.logo} alt={uni.name} style={{ maxHeight: 72, maxWidth: 180, objectFit: "contain", filter: "brightness(1.1) contrast(1.05)" }} />
+                  <div className="logo-tile">
+                    <img src={uni.logo} alt={uni.name} />
                   </div>
                   <div>
                     <h3 className="lp-display" style={{ fontSize: 18, letterSpacing: "-0.02em", marginBottom: 4 }}>{uni.name}</h3>

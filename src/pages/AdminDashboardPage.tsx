@@ -137,16 +137,16 @@ export default function AdminDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#162132] flex items-center justify-center">
+      <div className="min-h-dvh bg-[#162132] flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-primary-400 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#162132]">
+    <div className="min-h-dvh bg-[#162132]">
       {/* Sidebar */}
-      <aside className="fixed left-0 top-0 bottom-0 w-64 bg-secondary-900 border-r border-secondary-700/60 hidden lg:block">
+      <aside className="fixed left-0 top-0 bottom-0 w-64 bg-secondary-900 border-r border-white/[0.08] hidden lg:block">
         <div className="p-6">
           <div className="flex items-center gap-2 mb-8">
             <img src="/images/WhatsApp_Image_2026-06-03_at_5.22.16_PM.jpeg" className="w-8 h-8 object-contain rounded" alt="AI Club" />
@@ -175,7 +175,7 @@ export default function AdminDashboardPage() {
           </nav>
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-secondary-700">
+        <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-white/10">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-accent-500/20 flex items-center justify-center">
               <span className="text-accent-400 font-semibold">{profile?.full_name.charAt(0)}</span>
@@ -198,7 +198,7 @@ export default function AdminDashboardPage() {
       {/* Main Content */}
       <main className="lg:ml-64">
         {/* Mobile Header */}
-        <header className="lg:hidden fixed top-0 left-0 right-0 bg-secondary-900 border-b border-secondary-700/60 z-40">
+        <header className="lg:hidden fixed top-0 left-0 right-0 bg-secondary-900 border-b border-white/[0.08] z-40">
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-2">
               <img src="/images/WhatsApp_Image_2026-06-03_at_5.22.16_PM.jpeg" className="w-6 h-6 object-contain rounded" alt="AI Club" />
@@ -208,7 +208,7 @@ export default function AdminDashboardPage() {
               <LogOut className="w-5 h-5" />
             </button>
           </div>
-          <div className="flex gap-1 p-2 overflow-x-auto">
+          <div className="flex gap-1 p-2 overflow-x-auto scroll-fade">
             {sidebarItems.map((item) => (
               <button
                 key={item.id}
@@ -235,19 +235,19 @@ export default function AdminDashboardPage() {
 
               {/* Stats */}
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="p-7 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
+                <div className="p-7 bg-secondary-800/50 border border-white/[0.08] rounded-2xl">
                   <div className="text-secondary-400 text-sm mb-2">Total Students</div>
                   <div className="font-display text-3xl font-bold text-white">{stats.students}</div>
                 </div>
-                <div className="p-7 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
+                <div className="p-7 bg-secondary-800/50 border border-white/[0.08] rounded-2xl">
                   <div className="text-secondary-400 text-sm mb-2">Active Projects</div>
                   <div className="font-display text-3xl font-bold text-primary-400">{stats.projects}</div>
                 </div>
-                <div className="p-7 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
+                <div className="p-7 bg-secondary-800/50 border border-white/[0.08] rounded-2xl">
                   <div className="text-secondary-400 text-sm mb-2">Unread Messages</div>
                   <div className="font-display text-3xl font-bold text-accent-400">{stats.pendingMessages}</div>
                 </div>
-                <div className="p-7 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
+                <div className="p-7 bg-secondary-800/50 border border-white/[0.08] rounded-2xl">
                   <div className="text-secondary-400 text-sm mb-2">Upcoming Classes</div>
                   <div className="font-display text-3xl font-bold text-white">{stats.upcomingClasses}</div>
                 </div>
@@ -255,7 +255,7 @@ export default function AdminDashboardPage() {
 
               {/* Recent Activity */}
               <div className="grid lg:grid-cols-2 gap-6">
-                <div className="p-6 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
+                <div className="p-6 bg-secondary-800/50 border border-white/[0.08] rounded-2xl">
                   <h2 className="font-display text-lg font-semibold text-white mb-4">Recent Students</h2>
                   <div className="space-y-3">
                     {students.slice(0, 4).map((s) => (
@@ -272,7 +272,7 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
 
-                <div className="p-6 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
+                <div className="p-6 bg-secondary-800/50 border border-white/[0.08] rounded-2xl">
                   <h2 className="font-display text-lg font-semibold text-white mb-4">Recent Messages</h2>
                   <div className="space-y-3">
                     {messages.slice(0, 4).map((m) => (
@@ -441,7 +441,7 @@ function UserManagement({ students, onUpdate }: { students: Profile[]; onUpdate:
     }
   }
 
-  const inputCls = 'w-full bg-secondary-900 border border-secondary-700 rounded-lg px-4 py-2.5 text-white placeholder-secondary-500 focus:border-primary-500 focus:outline-none transition-colors';
+  const inputCls = 'w-full bg-secondary-900 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-secondary-500 focus:border-primary-500 focus:outline-none transition-colors';
 
   return (
     <div className="space-y-8">
@@ -455,7 +455,7 @@ function UserManagement({ students, onUpdate }: { students: Profile[]; onUpdate:
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search students..."
-              className="pl-10 pr-4 py-2 bg-secondary-800 border border-secondary-700 rounded-lg text-white placeholder-secondary-500"
+              className="pl-10 pr-4 py-2 bg-secondary-800 border border-white/10 rounded-lg text-white placeholder-secondary-500"
             />
           </div>
           <button
@@ -471,7 +471,7 @@ function UserManagement({ students, onUpdate }: { students: Profile[]; onUpdate:
       {/* Add Student Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-secondary-800 border border-secondary-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+          <div className="bg-secondary-800 border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-display text-xl font-bold text-white">Add New Student</h2>
               <button
@@ -509,7 +509,7 @@ function UserManagement({ students, onUpdate }: { students: Profile[]; onUpdate:
       {/* Edit Student Modal */}
       {editingStudent && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-secondary-800 border border-secondary-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+          <div className="bg-secondary-800 border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-display text-xl font-bold text-white">Edit Student</h2>
               <button onClick={() => setEditingStudent(null)} className="text-secondary-400 hover:text-white transition-colors">
@@ -543,10 +543,10 @@ function UserManagement({ students, onUpdate }: { students: Profile[]; onUpdate:
         </div>
       )}
 
-      <div className="bg-secondary-800/50 border border-secondary-700/50 rounded-2xl overflow-hidden">
+      <div className="bg-secondary-800/50 border border-white/[0.08] rounded-2xl overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-secondary-700">
+            <tr className="border-b border-white/10">
               <th className="text-left p-4 text-secondary-400 font-medium">Name</th>
               <th className="text-left p-4 text-secondary-400 font-medium hidden sm:table-cell">Email</th>
               <th className="text-left p-4 text-secondary-400 font-medium hidden lg:table-cell">Phone</th>
@@ -556,7 +556,7 @@ function UserManagement({ students, onUpdate }: { students: Profile[]; onUpdate:
           </thead>
           <tbody>
             {filteredStudents.map((student) => (
-              <tr key={student.id} className="border-b border-secondary-700/50 last:border-0 hover:bg-secondary-700/20 transition-colors">
+              <tr key={student.id} className="border-b border-white/[0.08] last:border-0 hover:bg-secondary-700/20 transition-colors">
                 <td className="p-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary-500/20 flex items-center justify-center text-primary-400 font-semibold">
@@ -759,7 +759,7 @@ function ProjectManagement({
       {/* New Project Modal */}
       {showNewProject && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-secondary-800 border border-secondary-700 rounded-2xl p-6 w-full max-w-md my-8">
+          <div className="bg-secondary-800 border border-white/10 rounded-2xl p-6 w-full max-w-md my-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-xl font-bold text-white">Assign New Project</h2>
               <button onClick={() => setShowNewProject(false)} className="text-secondary-400 hover:text-white">
@@ -774,7 +774,7 @@ function ProjectManagement({
                   value={newForm.title}
                   onChange={(e) => setNewForm({ ...newForm, title: e.target.value })}
                   required
-                  className="w-full bg-secondary-900 border border-secondary-700 rounded-lg px-4 py-2 text-white"
+                  className="w-full bg-secondary-900 border border-white/10 rounded-lg px-4 py-2 text-white"
                 />
               </div>
               <div>
@@ -783,7 +783,7 @@ function ProjectManagement({
                   value={newForm.description}
                   onChange={(e) => setNewForm({ ...newForm, description: e.target.value })}
                   rows={3}
-                  className="w-full bg-secondary-900 border border-secondary-700 rounded-lg px-4 py-2 text-white resize-none"
+                  className="w-full bg-secondary-900 border border-white/10 rounded-lg px-4 py-2 text-white resize-none"
                 />
               </div>
               <div>
@@ -793,7 +793,7 @@ function ProjectManagement({
                     <span className="ml-2 text-primary-400">({newForm.student_ids.length} selected)</span>
                   )}
                 </label>
-                <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-3 bg-secondary-900 border border-secondary-700 rounded-lg">
+                <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-3 bg-secondary-900 border border-white/10 rounded-lg">
                   {students.map((s) => {
                     const isSelected = newForm.student_ids.includes(s.id);
                     return (
@@ -822,7 +822,7 @@ function ProjectManagement({
                   type="date"
                   value={newForm.due_date}
                   onChange={(e) => setNewForm({ ...newForm, due_date: e.target.value })}
-                  className="w-full bg-secondary-900 border border-secondary-700 rounded-lg px-4 py-2 text-white"
+                  className="w-full bg-secondary-900 border border-white/10 rounded-lg px-4 py-2 text-white"
                 />
               </div>
               <button
@@ -840,7 +840,7 @@ function ProjectManagement({
       {/* Edit Modal */}
       {editingProject && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-secondary-800 border border-secondary-700 rounded-2xl p-6 w-full max-w-md my-8">
+          <div className="bg-secondary-800 border border-white/10 rounded-2xl p-6 w-full max-w-md my-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-xl font-bold text-white">Edit Project</h2>
               <button onClick={() => setEditingProject(null)} className="text-secondary-400 hover:text-white">
@@ -857,7 +857,7 @@ function ProjectManagement({
                 <select
                   value={editForm.status}
                   onChange={(e) => setEditForm({ ...editForm, status: e.target.value as Project['status'] })}
-                  className="w-full bg-secondary-900 border border-secondary-700 rounded-lg px-4 py-2 text-white"
+                  className="w-full bg-secondary-900 border border-white/10 rounded-lg px-4 py-2 text-white"
                 >
                   <option value="not_started">Not Started</option>
                   <option value="in_progress">In Progress</option>
@@ -872,7 +872,7 @@ function ProjectManagement({
                     <span className="ml-2 text-primary-400">({editForm.student_ids.length} selected)</span>
                   )}
                 </label>
-                <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-3 bg-secondary-900 border border-secondary-700 rounded-lg">
+                <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-3 bg-secondary-900 border border-white/10 rounded-lg">
                   {students.map((s) => {
                     const isSelected = editForm.student_ids.includes(s.id);
                     return (
@@ -898,7 +898,7 @@ function ProjectManagement({
                   value={editForm.mentor_notes}
                   onChange={(e) => setEditForm({ ...editForm, mentor_notes: e.target.value })}
                   rows={3}
-                  className="w-full bg-secondary-900 border border-secondary-700 rounded-lg px-4 py-2 text-white resize-none"
+                  className="w-full bg-secondary-900 border border-white/10 rounded-lg px-4 py-2 text-white resize-none"
                 />
               </div>
               <button
@@ -921,7 +921,7 @@ function ProjectManagement({
           projects.map((project) => {
             const assignedStudents = getProjectStudents(project.id);
             return (
-              <div key={project.id} className="p-6 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
+              <div key={project.id} className="p-6 bg-secondary-800/50 border border-white/[0.08] rounded-2xl">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
@@ -1059,7 +1059,7 @@ function MessageManagement({
       {/* Reply Modal */}
       {replyingTo && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-secondary-800 border border-secondary-700 rounded-2xl p-6 w-full max-w-md">
+          <div className="bg-secondary-800 border border-white/10 rounded-2xl p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-xl font-bold text-white">Reply</h2>
               <button onClick={() => setReplyingTo(null)} className="text-secondary-400 hover:text-white">
@@ -1076,7 +1076,7 @@ function MessageManagement({
                 onChange={(e) => setReply(e.target.value)}
                 rows={4}
                 placeholder="Type your reply..."
-                className="w-full bg-secondary-900 border border-secondary-700 rounded-lg px-4 py-2 text-white resize-none"
+                className="w-full bg-secondary-900 border border-white/10 rounded-lg px-4 py-2 text-white resize-none"
               />
               <button
                 type="submit"
@@ -1105,8 +1105,8 @@ function MessageManagement({
                   isOwn
                     ? 'bg-primary-500/10 border border-primary-500/20'
                     : msg.read_at
-                    ? 'bg-secondary-800/30 border border-secondary-700/30'
-                    : 'bg-secondary-800/50 border border-secondary-700/50'
+                    ? 'bg-secondary-800/30 border border-white/5'
+                    : 'bg-secondary-800/50 border border-white/[0.08]'
                 }`}
               >
                 <div className="flex items-start justify-between gap-4">
@@ -1260,7 +1260,7 @@ function ClassManagement({
       {/* Modal */}
       {(showNewClass || editingClass) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-secondary-800 border border-secondary-700 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="bg-secondary-800 border border-white/10 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-xl font-bold text-white">
                 {editingClass ? 'Edit Class' : 'Create New Class'}
@@ -1284,7 +1284,7 @@ function ClassManagement({
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                   required
-                  className="w-full bg-secondary-900 border border-secondary-700 rounded-lg px-4 py-2 text-white"
+                  className="w-full bg-secondary-900 border border-white/10 rounded-lg px-4 py-2 text-white"
                 />
               </div>
               <div>
@@ -1293,7 +1293,7 @@ function ClassManagement({
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   rows={2}
-                  className="w-full bg-secondary-900 border border-secondary-700 rounded-lg px-4 py-2 text-white resize-none"
+                  className="w-full bg-secondary-900 border border-white/10 rounded-lg px-4 py-2 text-white resize-none"
                 />
               </div>
               <div>
@@ -1303,7 +1303,7 @@ function ClassManagement({
                   value={form.date}
                   onChange={(e) => setForm({ ...form, date: e.target.value })}
                   required
-                  className="w-full bg-secondary-900 border border-secondary-700 rounded-lg px-4 py-2 text-white"
+                  className="w-full bg-secondary-900 border border-white/10 rounded-lg px-4 py-2 text-white"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -1314,7 +1314,7 @@ function ClassManagement({
                     value={form.start_time}
                     onChange={(e) => setForm({ ...form, start_time: e.target.value })}
                     required
-                    className="w-full bg-secondary-900 border border-secondary-700 rounded-lg px-4 py-2 text-white"
+                    className="w-full bg-secondary-900 border border-white/10 rounded-lg px-4 py-2 text-white"
                   />
                 </div>
                 <div>
@@ -1324,7 +1324,7 @@ function ClassManagement({
                     value={form.end_time}
                     onChange={(e) => setForm({ ...form, end_time: e.target.value })}
                     required
-                    className="w-full bg-secondary-900 border border-secondary-700 rounded-lg px-4 py-2 text-white"
+                    className="w-full bg-secondary-900 border border-white/10 rounded-lg px-4 py-2 text-white"
                   />
                 </div>
               </div>
@@ -1334,7 +1334,7 @@ function ClassManagement({
                   type="text"
                   value={form.location}
                   onChange={(e) => setForm({ ...form, location: e.target.value })}
-                  className="w-full bg-secondary-900 border border-secondary-700 rounded-lg px-4 py-2 text-white"
+                  className="w-full bg-secondary-900 border border-white/10 rounded-lg px-4 py-2 text-white"
                 />
               </div>
               <button
@@ -1355,7 +1355,7 @@ function ClassManagement({
           <div className="text-center py-12 text-secondary-400">No classes scheduled</div>
         ) : (
           classes.map((c) => (
-            <div key={c.id} className="p-6 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
+            <div key={c.id} className="p-6 bg-secondary-800/50 border border-white/[0.08] rounded-2xl">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-white font-semibold text-lg">{c.title}</h3>
@@ -1486,7 +1486,7 @@ function AnnouncementManagement({
       {/* Modal */}
       {(showNew || editing) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-secondary-800 border border-secondary-700 rounded-2xl p-6 w-full max-w-md">
+          <div className="bg-secondary-800 border border-white/10 rounded-2xl p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-xl font-bold text-white">
                 {editing ? 'Edit Announcement' : 'Create Announcement'}
@@ -1510,7 +1510,7 @@ function AnnouncementManagement({
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                   required
-                  className="w-full bg-secondary-900 border border-secondary-700 rounded-lg px-4 py-2 text-white"
+                  className="w-full bg-secondary-900 border border-white/10 rounded-lg px-4 py-2 text-white"
                 />
               </div>
               <div>
@@ -1520,7 +1520,7 @@ function AnnouncementManagement({
                   onChange={(e) => setForm({ ...form, content: e.target.value })}
                   rows={4}
                   required
-                  className="w-full bg-secondary-900 border border-secondary-700 rounded-lg px-4 py-2 text-white resize-none"
+                  className="w-full bg-secondary-900 border border-white/10 rounded-lg px-4 py-2 text-white resize-none"
                 />
               </div>
               <div>
@@ -1528,7 +1528,7 @@ function AnnouncementManagement({
                 <select
                   value={form.priority}
                   onChange={(e) => setForm({ ...form, priority: e.target.value as Announcement['priority'] })}
-                  className="w-full bg-secondary-900 border border-secondary-700 rounded-lg px-4 py-2 text-white"
+                  className="w-full bg-secondary-900 border border-white/10 rounded-lg px-4 py-2 text-white"
                 >
                   <option value="low">Low</option>
                   <option value="normal">Normal</option>
@@ -1558,7 +1558,7 @@ function AnnouncementManagement({
               className={`p-6 rounded-2xl border ${
                 a.priority === 'high'
                   ? 'bg-red-500/10 border-red-500/20'
-                  : 'bg-secondary-800/50 border-secondary-700/50'
+                  : 'bg-secondary-800/50 border-white/[0.08]'
               }`}
             >
               <div className="flex items-start justify-between">
@@ -1729,7 +1729,7 @@ function AttendanceManagement({
       ) : (
         <>
           {/* Class selector */}
-          <div className="flex gap-3 overflow-x-auto pb-2">
+          <div className="flex gap-3 overflow-x-auto pb-2 scroll-fade">
             {classes.map((c) => {
               const isSelected = selectedClassId === c.id;
               const classAttCount = attendance.filter((a) => a.class_id === c.id).length;
@@ -1740,7 +1740,7 @@ function AttendanceManagement({
                   className={`flex-shrink-0 px-5 py-3 rounded-xl border-2 transition-all text-left ${
                     isSelected
                       ? 'bg-primary-500/10 border-primary-500'
-                      : 'bg-secondary-800/50 border-secondary-700/50 hover:border-secondary-600'
+                      : 'bg-secondary-800/50 border-white/[0.08] hover:border-white/15'
                   }`}
                 >
                   <div className="text-white font-medium whitespace-nowrap">{c.title}</div>
@@ -1766,19 +1766,19 @@ function AttendanceManagement({
               <>
                 {/* Summary stats */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="bg-secondary-800/50 border border-secondary-700/50 rounded-xl p-4">
+                  <div className="bg-secondary-800/50 border border-white/[0.08] rounded-xl p-4">
                     <div className="text-green-400 text-2xl font-bold">{presentCount}</div>
                     <div className="text-secondary-400 text-sm">Present</div>
                   </div>
-                  <div className="bg-secondary-800/50 border border-secondary-700/50 rounded-xl p-4">
+                  <div className="bg-secondary-800/50 border border-white/[0.08] rounded-xl p-4">
                     <div className="text-red-400 text-2xl font-bold">{absentCount}</div>
                     <div className="text-secondary-400 text-sm">Absent</div>
                   </div>
-                  <div className="bg-secondary-800/50 border border-secondary-700/50 rounded-xl p-4">
+                  <div className="bg-secondary-800/50 border border-white/[0.08] rounded-xl p-4">
                     <div className="text-yellow-400 text-2xl font-bold">{lateCount}</div>
                     <div className="text-secondary-400 text-sm">Late</div>
                   </div>
-                  <div className="bg-secondary-800/50 border border-secondary-700/50 rounded-xl p-4">
+                  <div className="bg-secondary-800/50 border border-white/[0.08] rounded-xl p-4">
                     <div className="text-blue-400 text-2xl font-bold">{excusedCount}</div>
                     <div className="text-secondary-400 text-sm">Excused</div>
                   </div>
@@ -1802,7 +1802,7 @@ function AttendanceManagement({
                             ? 'bg-green-500/5 border-green-500/30'
                             : currentStatus === 'late'
                             ? 'bg-yellow-500/5 border-yellow-500/30'
-                            : 'bg-secondary-800/50 border-secondary-700/50'
+                            : 'bg-secondary-800/50 border-white/[0.08]'
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
@@ -1898,7 +1898,7 @@ function ClassNotesManagement({
   const [pendingFile, setPendingFile] = useState<File | null>(null);
 
   const inputCls =
-    'w-full bg-secondary-900 border border-secondary-700/50 rounded-lg px-4 py-2.5 text-white placeholder-secondary-500 focus:outline-none focus:border-primary-500 transition-colors';
+    'w-full bg-secondary-900 border border-white/[0.08] rounded-lg px-4 py-2.5 text-white placeholder-secondary-500 focus:outline-none focus:border-primary-500 transition-colors';
 
   const filesForClass = classNoteFiles.filter((f) => f.class_id === selectedClassId);
 
@@ -2016,7 +2016,7 @@ function ClassNotesManagement({
       ) : (
         <>
           {/* Class selector */}
-          <div className="flex gap-3 overflow-x-auto pb-2">
+          <div className="flex gap-3 overflow-x-auto pb-2 scroll-fade">
             {classes.map((c) => {
               const isSelected = selectedClassId === c.id;
               const fileCount = classNoteFiles.filter((f) => f.class_id === c.id).length;
@@ -2027,7 +2027,7 @@ function ClassNotesManagement({
                   className={`flex-shrink-0 px-5 py-3 rounded-xl border-2 transition-all text-left ${
                     isSelected
                       ? 'bg-primary-500/10 border-primary-500'
-                      : 'bg-secondary-800/50 border-secondary-700/50 hover:border-secondary-600'
+                      : 'bg-secondary-800/50 border-white/[0.08] hover:border-white/15'
                   }`}
                 >
                   <div className="text-white font-medium whitespace-nowrap">{c.title}</div>
@@ -2046,7 +2046,7 @@ function ClassNotesManagement({
             <div className="space-y-5">
               {/* Upload form */}
               {showUploadForm && pendingFile ? (
-                <div className="bg-secondary-800/60 border border-secondary-700/50 rounded-2xl p-6 space-y-4">
+                <div className="bg-secondary-800/60 border border-white/[0.08] rounded-2xl p-6 space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-white font-semibold">Upload File</h3>
                     <button onClick={cancelUpload} className="p-1.5 text-secondary-400 hover:text-white">
@@ -2055,7 +2055,7 @@ function ClassNotesManagement({
                   </div>
 
                   {/* File preview */}
-                  <div className="flex items-center gap-4 p-4 bg-secondary-900/60 rounded-xl border border-secondary-700/40">
+                  <div className="flex items-center gap-4 p-4 bg-secondary-900/60 rounded-xl border border-white/5">
                     {pendingFile.type.startsWith('image/') ? (
                       <img
                         src={URL.createObjectURL(pendingFile)}
@@ -2115,7 +2115,7 @@ function ClassNotesManagement({
                   className={`relative border-2 border-dashed rounded-2xl p-10 text-center transition-all ${
                     dragOver
                       ? 'border-primary-500 bg-primary-500/10'
-                      : 'border-secondary-700/50 hover:border-secondary-600 bg-secondary-800/30'
+                      : 'border-white/[0.08] hover:border-white/15 bg-secondary-800/30'
                   }`}
                 >
                   <Upload className={`w-10 h-10 mx-auto mb-3 ${dragOver ? 'text-primary-400' : 'text-secondary-500'}`} />
@@ -2146,7 +2146,7 @@ function ClassNotesManagement({
                     return (
                       <div
                         key={file.id}
-                        className="flex items-start gap-4 p-4 bg-secondary-800/50 border border-secondary-700/50 rounded-xl hover:border-secondary-600 transition-colors"
+                        className="flex items-start gap-4 p-4 bg-secondary-800/50 border border-white/[0.08] rounded-xl hover:border-white/15 transition-colors"
                       >
                         {/* Thumbnail / icon */}
                         {isImage ? (
@@ -2316,7 +2316,7 @@ function PollManagement({
     onUpdate();
   }
 
-  const inputCls = 'w-full bg-secondary-900 border border-secondary-700 rounded-lg px-4 py-2.5 text-white placeholder-secondary-500 focus:border-primary-500 focus:outline-none transition-colors';
+  const inputCls = 'w-full bg-secondary-900 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-secondary-500 focus:border-primary-500 focus:outline-none transition-colors';
 
   return (
     <div className="space-y-6">
@@ -2333,7 +2333,7 @@ function PollManagement({
       {/* Create / Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-secondary-800 border border-secondary-700 rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-secondary-800 border border-white/10 rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-display text-xl font-bold text-white">{editing ? 'Edit Poll' : 'New Poll'}</h2>
               <button onClick={() => setShowModal(false)} className="text-secondary-400 hover:text-white"><X className="w-5 h-5" /></button>
@@ -2375,7 +2375,7 @@ function PollManagement({
                   <Plus className="w-4 h-4" /> Add option
                 </button>
               </div>
-              <div className="flex items-center gap-3 py-1 border-t border-secondary-700/50 pt-4">
+              <div className="flex items-center gap-3 py-1 border-t border-white/[0.08] pt-4">
                 <div>
                   <p className="text-sm font-medium text-secondary-300">Active (visible to students)</p>
                 </div>
@@ -2417,7 +2417,7 @@ function PollManagement({
             const votes = pollVotes.filter((v) => v.poll_id === poll.id);
             const totalVotes = votes.length;
             return (
-              <div key={poll.id} className="p-6 bg-secondary-800/50 border border-secondary-700/50 rounded-2xl">
+              <div key={poll.id} className="p-6 bg-secondary-800/50 border border-white/[0.08] rounded-2xl">
                 <div className="flex items-start justify-between gap-4 mb-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1 flex-wrap">

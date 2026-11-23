@@ -3,15 +3,27 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-    storageKey: 'supabase.auth.token',
+// Without these settings createClient throws and the whole site goes blank,
+// /summit included. Fall back to a placeholder so public pages still load;
+// member log-in shows an error until the real values are set in Vercel.
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+if (!isSupabaseConfigured) {
+  console.warn('VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY are not set: member log-in is unavailable.');
+}
+
+export const supabase = createClient(
+  isSupabaseConfigured ? supabaseUrl : 'https://supabase-not-configured.invalid',
+  isSupabaseConfigured ? supabaseAnonKey : 'not-configured',
+  {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+      storageKey: 'supabase.auth.token',
+    },
   },
-});
+);
 
 export interface Event {
   id: string;
